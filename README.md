@@ -120,20 +120,9 @@ $HOOD_DATA
 ## Inference
 The jupyter notebook [Inference.ipynb](Inference.ipynb) contains an example of how to run inference of a trained HOOD model given a garment and a pose sequence.
 
-It also has examples of such use-cases as adding a new garment from an .obj file and converting sequences from [AMASS](https://amass.is.tue.mpg.de/) and [VTO](https://github.com/isantesteban/vto-dataset) datasets to the format used in HOOD.
+It also has code for adding a new garment from an .obj file.
 
 To run inference starting from arbitrary garment pose and arbitrary mesh sequence refer to the [InferenceFromMeshSequence.ipynb](Inference_from_any_pose.ipynb) notebook.  
-
-## Training
-To train a new HOOD model from scratch, you need to first download the [VTO](https://github.com/isantesteban/vto-dataset) dataset and convert it to our format.
-
-You can find the instructions on how to do that and the commands used to start the training in the [Training.ipynb](Training.ipynb) notebook.
-
-## Validation Sequences
-You can download the sequences used for validation (Table 1 in the main paper and Tables 1 and 2 in the Supplementary) 
-using [this link](https://drive.google.com/file/d/1jFkDWPZW2HwYsYqcXAC3hX0NlumBnqT3/view?usp=sharing)
-
-You can find instructions on how to generate validation sequences and compute metrics over them in the [ValidationSequences.ipynb](ValidationSequences.ipynb) notebook.
 
 
 
