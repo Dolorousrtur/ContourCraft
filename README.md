@@ -152,13 +152,13 @@ If you use this repository in your paper, please cite:
       year = {2023},
       }
 
-        @inproceedings{grigorev2024contourcraft,
-        title={{ContourCraft}: Learning to Resolve Intersections in Neural Multi-Garment Simulations},
-        author={Grigorev, Artur and Becherini, Giorgio and Black, Michael and Hilliges, Otmar and Thomaszewski, Bernhard},
-        booktitle={ACM SIGGRAPH 2024 Conference Papers},
-        pages={1--10},
-        year={2024}
-        }
+      @inproceedings{grigorev2024contourcraft,
+      title={{ContourCraft}: Learning to Resolve Intersections in Neural Multi-Garment Simulations},
+      author={Grigorev, Artur and Becherini, Giorgio and Black, Michael and Hilliges, Otmar and Thomaszewski, Bernhard},
+      booktitle={ACM SIGGRAPH 2024 Conference Papers},
+      pages={1--10},
+      year={2024}
+      }
 
 
 ```
