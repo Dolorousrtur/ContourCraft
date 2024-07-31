@@ -1,7 +1,7 @@
 
 # ContourCraft: Learning to Resolve Intersections in Neural Multi-Garment Simulations
 
-### <img align=center src=./static/icons/project.png width='32'/> [Project](https://dolorousrtur.github.io/contourcraft/) &ensp; <img align=center src=./static/icons/paper.png width='24'/> [Paper](https://arxiv.org/abs/2212.07242) &ensp;  
+### <img align=center src=./static/icons/project.png width='32'/> [Project](https://dolorousrtur.github.io/contourcraft/) &ensp; <img align=center src=./static/icons/paper.png width='24'/> [Paper](https://arxiv.org/abs/2405.09522) &ensp;  
 
 This is a repository for the paper [**"ContourCraft: Learning to Resolve Intersections in Neural Multi-Garment Simulations"**](https://arxiv.org/abs/2405.09522) (SIGGRAPH2024).
 
