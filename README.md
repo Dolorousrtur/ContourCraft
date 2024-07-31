@@ -88,18 +88,25 @@ export HOOD_DATA=/path/to/hood_data
 export HOOD_PROJECT=/path/to/this/repository
 ```
 
-#### SMPL models
-Download the SMPL models using this [link](https://smpl.is.tue.mpg.de/). Unpack them into the `$HOOD_DATA/aux_data/smpl` folder.
+#### SMPL(-X) models
+Download the SMPL models using this [link](https://smpl.is.tue.mpg.de/). Unpack them into the `$HOOD_DATA/aux_data/body_models/smpl` folder.
+
+If you want to use SMPL-X models, [download them](https://smpl-x.is.tue.mpg.de/) and unpack into `$HOOD_DATA/aux_data/body_models/smplx`.
 
 In the end your `$HOOD_DATA` folder should look like this:
 ```
 $HOOD_DATA
     |-- aux_data
         |-- datasplits // directory with csv data splits used for training the model
-        |-- smpl // directory with smpl models
+        |-- body_models
+          |-- smpl // directory with smpl models
             |-- SMPL_NEUTRAL.pkl
             |-- SMPL_FEMALE.pkl
             |-- SMPL_MALE.pkl
+          |-- smplx // directory with smplx models
+            |-- SMPLX_NEUTRAL.pkl
+            |-- SMPLX_FEMALE.pkl
+            |-- SMPLX_MALE.pkl
         |-- garment_meshes // folder with .obj meshes for garments used in HOOD
         |-- garments_dict.pkl // dictionary with garmentmeshes and their auxilliary data used for training and inference
         |-- smpl_aux.pkl // dictionary with indices of SMPL vertices that correspond to hands, used to disable hands during inference to avoid body self-intersections
