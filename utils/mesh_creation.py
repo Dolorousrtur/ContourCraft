@@ -293,6 +293,16 @@ def make_restpos_dict(vertices_full, faces_full):
     restpos_dict['faces'] = faces_full.astype(np.int64)
     restpos_dict['node_type'] = np.zeros_like(vertices_full[:, :1]).astype(np.int64)
 
+    G = make_graph_from_faces(faces_full)
+    components = list(nx.connected_components(G))
+    garment_id = np.zeros_like(vertices_full[:, :1]).astype(np.int64)
+
+    for i, component in enumerate(components):
+        component = np.array(list(component))
+        garment_id[component] = i
+
+    restpos_dict['garment_id'] = garment_id
+
     return restpos_dict
 
 
