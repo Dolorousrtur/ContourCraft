@@ -94,6 +94,25 @@ def add_seq(path: str, x_shift: float = 0, y_shift: float = 0, cloth_color: tupl
         cloth_color = (0., 0.3, 0.3, cloth_opacity)
 
     cloth_color = np.array(cloth_color)
+    face_colors = np.tile(cloth_color, (cloth_faces.shape[0], 1))
+
+    cmap = plt.get_cmap('viridis')
+    if 'garment_id' in traj_dict:
+        garment_id = traj_dict['garment_id'][:, 0]
+        n_garments = garment_id.max() + 1
+
+        for i in range(n_garments):
+            garment_mask = garment_id == i
+            faces_mask = garment_mask[cloth_faces].all(axis=-1)
+            face_colors[faces_mask] = cmap(i / n_garments)
+
+    face_colors = adjust_color(face_colors)
+    N = pos.shape[0]
+    face_colors = np.tile(face_colors, (N, 1, 1))
+    face_colors[:, :, 3] = cloth_opacity
+
+
+
     cloth_color = adjust_color(cloth_color)
     cloth_color = tuple(cloth_color)
 
@@ -101,9 +120,30 @@ def add_seq(path: str, x_shift: float = 0, y_shift: float = 0, cloth_color: tupl
 
     out = []
 
-    mesh_cloth = Meshes(pos, cloth_faces, name=f"{name}_cloth", color=cloth_color)
-    mesh_cloth.backface_culling = False
-    out.append(mesh_cloth)
+    # mesh_cloth = Meshes(pos, cloth_faces, name=f"{name}_cloth", color=cloth_color)
+    # mesh_cloth.backface_culling = False
+    # out.append(mesh_cloth)
+
+    if 'garment_id' in traj_dict:
+        garment_id = traj_dict['garment_id'][:, 0]
+        n_garments = garment_id.max() + 1
+
+        for i in range(n_garments):
+            garment_mask = garment_id == i
+
+            faces_mask = garment_mask[cloth_faces].all(axis=-1)
+            garment_faces = cloth_faces[faces_mask]
+
+            garment_face_colors = face_colors[:, faces_mask]
+            mesh_cloth = Meshes(pos, garment_faces, face_colors=garment_face_colors, name=f"{name}_cloth_{i}",
+                                color=cloth_color)
+            mesh_cloth.backface_culling = False
+            out.append(mesh_cloth)
+    else:
+        mesh_cloth = Meshes(pos, cloth_faces, face_colors=face_colors, name=f"{name}_cloth", color=cloth_color)
+        mesh_cloth.backface_culling = False
+        out.append(mesh_cloth)
+
 
     if obstacle:
         mesh_obstacle = Meshes(obstacle_pos, obstacle_faces, color=obstacle_color, name=f"{name}_obstacle")
