@@ -96,7 +96,7 @@ def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: st
     file_name, _ = os.path.splitext(file_name)
 
     if config is None:
-        config = 'postcvpr'
+        config = 'contourcraft'
 
 
     dataloader = create_one_sequence_dataloader(use_config=config, data_root=data_root, single_sequence_file=file_name,
