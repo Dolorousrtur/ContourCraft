@@ -46,11 +46,11 @@ def make_fromanypose_dataloader(pose_sequence_type, pose_sequence_path, garment_
 
     config = DatasetConfig(pose_sequence_type=pose_sequence_type, 
                         pose_sequence_path=pose_sequence_path, 
-                        garment_template_path=garment_template_path, 
-                        smpl_model=smpl_model)
+                        garment_template_path=garment_template_path)
 
 
     dataset = create_dataset(config)
     dataloader_config = DataloaderConfig(num_workers=0)
     dataloader = DataloaderModule(dataset, dataloader_config).create_dataloader()
     return dataloader
+
