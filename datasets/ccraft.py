@@ -848,19 +848,25 @@ class Loader:
 
         self.data_path = mcfg.data_root
 
-    def load_sample(self, fname: str, idx: int, garment_name: str, betas_id: int) -> HeteroData:
+    def load_sample(self, fname: str, idx: int, garment_name_full: str, betas_id: int) -> HeteroData:
         """
         Build HeteroData object for a single sample
         :param fname: name of the pose sequence relative to self.data_path
         :param idx: index of the frame to load (not used if self.mcfg.wholeseq == True)
-        :param garment_name: name of the garment to load
+        :param garment_name_full: name of the garment to load, can be a comma-separated list of names
         :param betas_id: index of the beta parameters in self.betas_table (only used to generate validation sequences when comparing to snug/ssch)
         :return: HelteroData object (see BodyBuilder.build and GarmentBuilder.build for details)
         """
         sequence = self.sequence_loader.load_sequence(fname, betas_id=betas_id)
         sample = HeteroData()
         sample = self.body_builder.build(sample, sequence, idx)
-        sample = self.garment_builder.build(sample, sequence, idx, garment_name)
+
+        garment_names = garment_name_full.split(',')
+        garment_names = [x.strip() for x in garment_names]
+
+        for garment_name in garment_names:
+            sample = self.garment_builder.build(sample, sequence, idx, garment_name)
+            
         return sample
 
 
