@@ -127,6 +127,8 @@ class GarmentCreator:
 
         components = list(nx.connected_components(G))
 
+        from time import time
+
         cGd_list = []
         for component in components:
             cg_dict = dict()
@@ -138,7 +140,6 @@ class GarmentCreator:
             faces_component = faces[faces_mask]
 
             center_nodes = nx.center(cG)
-
             cg_dict['center'] = center_nodes
             cg_dict['coarse_edges'] = dict()
 
