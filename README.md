@@ -12,7 +12,7 @@ It is based on and fully includes the code for the paper  [**"HOOD: Hierarchical
 
 TODO list:
 - [x] Support for SMPL-X body model along with SMPL
-- [ ] Examples of multi-layer outfits
+- [x] Examples of multi-layer outfits
 - [ ] Automatic export to Alembic (.abc) format
 - [ ] Automatic outfit re-meshing to support outfits of arbitrary resolution
 - [ ] Automatic untangling procedure to combine unrelated garments into outfits
