@@ -21,6 +21,8 @@ class GarmentSMPL:
         :return: [NxVx3] garment vertices
         """
 
+
+        # print('full_pose.shape:', full_pose.shape)
         # if full_pose.shape[0] != self.garment_skinning_dict['posedirs'].shape[0]:
         #     raise ValueError(f"The pose sequence and the used garment template have different numbers of pose blendshapes. "
         #                      f"({full_pose.shape[0]} and {self.garment_skinning_dict['posedirs'].shape[0]} respectively) "
