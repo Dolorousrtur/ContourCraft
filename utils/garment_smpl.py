@@ -21,10 +21,10 @@ class GarmentSMPL:
         :return: [NxVx3] garment vertices
         """
 
-        if full_pose.shape[0] != self.garment_skinning_dict['posedirs'].shape[0]:
-            raise ValueError(f"The pose sequence and the used garment template have different numbers of pose blendshapes. "
-                             f"({full_pose.shape[0]} and {self.garment_skinning_dict['posedirs'].shape[0]} respectively) "
-                             "Make sure, both pose sequence and the garment template use the same body model (e.g. SMPL or SMPLX).")
+        # if full_pose.shape[0] != self.garment_skinning_dict['posedirs'].shape[0]:
+        #     raise ValueError(f"The pose sequence and the used garment template have different numbers of pose blendshapes. "
+        #                      f"({full_pose.shape[0]} and {self.garment_skinning_dict['posedirs'].shape[0]} respectively) "
+        #                      "Make sure, both pose sequence and the garment template use the same body model (e.g. SMPL or SMPLX).")
 
         J_transformed, joint_transforms = my_lbs.get_transformed_joints(betas, full_pose, self.smpl_model.v_template,
                                                                         self.smpl_model.shapedirs,
