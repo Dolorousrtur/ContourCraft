@@ -88,9 +88,37 @@ def sample_skinningweights(points, smpl_tree, sigmas, smpl_model):
 
     return garment_shapedirs, garment_posedirs, garment_lbs_weights
 
+
+def approximate_graph_center(G):
+    """
+    Approximates the center of a graph using the two-sweep BFS algorithm.
+
+    Returns:
+    center_vertex: The approximate center vertex of the graph.
+    """
+
+    # First BFS from an arbitrary vertex
+    start_vertex = list(G.nodes())[0]
+    lengths = nx.single_source_shortest_path_length(G, start_vertex)
+    u = max(lengths, key=lengths.get)
+
+    # Second BFS from vertex u
+    lengths = nx.single_source_shortest_path_length(G, u)
+    w = max(lengths, key=lengths.get)
+
+    # Get the shortest path from u to w
+    path = nx.shortest_path(G, source=u, target=w)
+
+    # Find the middle vertex (or vertices) of the path
+    path_length = len(path)
+    center_index = path_length // 2
+    center_vertex = path[center_index]
+    return center_vertex
+
 class GarmentCreator:
     def __init__(self, garments_dict_path, body_models_root, model_type, gender, 
-                 collect_lbs=True, n_samples_lbs=0, coarse=True, n_coarse_levels=4, verbose=False):
+                 collect_lbs=True, n_samples_lbs=0, coarse=True, n_coarse_levels=4, 
+                 approximate_center=False, verbose=False):
         self.garments_dict_path = garments_dict_path
         self.body_models_root = body_models_root
         self.model_type = model_type
@@ -102,6 +130,7 @@ class GarmentCreator:
         self.coarse = coarse
         self.n_coarse_levels = n_coarse_levels
         self.verbose = verbose
+        self.approximate_center = approximate_center
 
         if body_models_root is not None:
             self.body_model = smplx.create(body_models_root, model_type, gender=gender)
@@ -133,13 +162,18 @@ class GarmentCreator:
         for component in components:
             cg_dict = dict()
 
+
             cG = G.subgraph(component)
             component_ids = np.array(list(component))
             faces_mask = np.isin(faces, component_ids).all(axis=1)
 
             faces_component = faces[faces_mask]
 
-            center_nodes = nx.center(cG)
+            if self.approximate_center:
+                center_nodes = [approximate_graph_center(cG)]
+            else:
+                center_nodes = nx.center(cG)
+
             cg_dict['center'] = center_nodes
             cg_dict['coarse_edges'] = dict()
 
