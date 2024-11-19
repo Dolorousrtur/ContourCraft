@@ -165,4 +165,4 @@ Debug.ipynb
 *_bu.ipynb
 local/
 *debug*
-
+*.ini
