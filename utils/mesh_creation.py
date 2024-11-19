@@ -257,19 +257,22 @@ class GarmentCreator:
                         posedirs=garment_posedirs, lbs_weights=garment_lbs_weights)
 
         return out_dict
-
-    def make_garment_dict(self, obj_file):
-        """
-        Create a dictionary for a garment from an obj file
-        """
+    
+    def _load_from_obj(self, obj_file):
         vertices_full, faces_full = load_obj(obj_file, tex_coords=False)
+
         outer_trimesh = trimesh.Trimesh(vertices=vertices_full,
                                         faces=faces_full, process=True)
 
         vertices_full = outer_trimesh.vertices
         faces_full = outer_trimesh.faces
 
-        garment_dict = make_restpos_dict(vertices_full, faces_full)
+        return vertices_full, faces_full
+    
+    def _make_garment_dict_from_verts(self, vertices_full, faces_full, vertices_canonical=None):
+        if vertices_canonical is None:
+            vertices_canonical = vertices_full
+        garment_dict = make_restpos_dict(vertices_canonical, faces_full)
 
         if self.collect_lbs:
             if self.verbose:
@@ -291,31 +294,33 @@ class GarmentCreator:
 
         return garment_dict
 
+    def make_garment_dict(self, obj_file):
+        """
+        Create a dictionary for a garment from an obj file
+        """
+
+        vertices_full, faces_full = self._load_from_obj(obj_file)
+        garment_dict = self._make_garment_dict_from_verts(vertices_full, faces_full)
+
+        return garment_dict
+
+    def _update_garment_dict(self, garment_dict, garment_name):
+        garments_dict = self._load_garments_dict()
+        garments_dict[garment_name] = garment_dict
+        self._save_garments_dict(garments_dict)
+        if self.verbose:
+            print(f"Garment '{garment_name}' added to {self.garments_dict_path}")
 
     def add_garment(self, objfile, garment_name):
         """
         Add a new garment from a given obj file to the garments_dict_file
 
         :param objfile: path to the obj file with the new garment
-        :param garments_dict_file: path to the garments dict file storing all garments
         :param garment_name: name of the new garment
-        :param smpl_file: path to the smpl model file
-        :param coarse: whether to add coarse edges
-        :param n_coarse_levels: number of coarse levels to add
-        :param training: whether to add the lbs weights (needed to initialize from arbitrary pose)
-        :param n_samples_lbs: number of samples to use for the 'diffused' lbs weights [Santesteban et al. 2021]
-            use 0 for tight-fitting garments, and 1000 for loose-fitting garments
         """
 
         garment_dict = self.make_garment_dict(objfile)
-
-        garments_dict = self._load_garments_dict()
-
-        garments_dict[garment_name] = garment_dict
-        self._save_garments_dict(garments_dict)
-
-        if self.verbose:
-            print(f"Garment '{garment_name}' added to {self.garments_dict_path}")
+        self._update_garment_dict(garment_dict, garment_name)
 
 
 def make_restpos_dict(vertices_full, faces_full):
