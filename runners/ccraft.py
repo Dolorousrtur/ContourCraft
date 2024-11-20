@@ -161,13 +161,7 @@ class Runner(nn.Module):
             
         cloth_faces = sequence['cloth'].faces_batch.T.cpu().numpy()
         garment_name = sequence.garment_name[0]
-        print('garment_name', garment_name)
-        if 'celina' in garment_name:
-            faces_mask = (cloth_faces == 8504).any(axis=-1)
-            cloth_faces = cloth_faces[~faces_mask]
-            print('!!!!!!!!!!faces_mask', faces_mask.sum())
-        else:
-            faces_mask = None
+        faces_mask = None
         
 
         trajectories_dicts.update(trajectories)
@@ -217,13 +211,8 @@ class Runner(nn.Module):
         sample = self.prepare_sample(sample)
 
         for i in pbar:
-            # print('\n\n')
             sample_step = self.collect_sample(sample, i, prev_out_sample, wholeseq=True)
             if i == 0:
-                # print('NOSOLVE')
-
-                # print('SOLVE')
-                # sample_step = self.collision_solver.solve(sample_step)
                 sample_step, sample = self.update_sample_1st_step(sample_step, sample)
 
             if i == 0:
@@ -248,7 +237,6 @@ class Runner(nn.Module):
 
             ncoll = self.safecheck_solver.calc_tritri_collisions2(sample_step, verts_key='pred_pos')
             metrics_dict['ncoll'].append(ncoll)
-            # print('ncoll', ncoll)
 
             prev_out_sample = sample_step.detach()
 
@@ -477,7 +465,6 @@ class Runner(nn.Module):
 
     def prepare_sample(self, sample):
         sample = self._add_cloth_obj(sample)
-        # sample = self.safecheck_solver.mark_penetrating_faces(sample, dummy=True)
 
         if random.random() < self.mcfg.nopin_freq:
             sample['cloth'].vertex_type *= 0
@@ -492,7 +479,6 @@ class Runner(nn.Module):
         else:
             is_safecheck = iter_num < self.safecheck_until
 
-        print('is_safecheck', is_safecheck)
         if is_safecheck or self.mcfg.cutout_with_attractions:
             sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step)
 
@@ -541,7 +527,6 @@ class Runner(nn.Module):
         for i in range(roll_steps):
             is_safecheck = is_safecheck_global
 
-            # print('roll_steps', roll_steps)
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
 
             is_first_step = i == 0
@@ -562,7 +547,6 @@ class Runner(nn.Module):
                 sample_step = self.collision_solver.solve(sample_step)
             if i == 1:
                 sample_step, sample = self.update_sample_1st_step(sample_step, sample)
-                # sample_step, sample = self.collect_penetrating_mask(sample_step, sample)
 
             if is_safecheck and i > 0 and not self.check_step(sample_step):
                 break
@@ -714,7 +698,6 @@ def create_optimizer(training_module: Runner, mcfg: DictConfig):
         decay = mcfg.decay_rate ** (step // mcfg.decay_steps)
         decay = max(decay, mcfg.decay_min)
 
-        # print(step, decay)
         return decay
 
     scheduler = LambdaLR(optimizer, sched_fun)
@@ -819,17 +802,12 @@ def run_epoch(training_module: Runner, aux_modules: dict, dataloader_short: Data
         if cfg.experiment.max_iter is not None and global_step > cfg.experiment.max_iter:
             break
 
-        # try:
         if last_step == 'short' and global_step > cfg.experiment.n_steps_only_short:
             curr_step = 'long'
             sample = next(long_iter)
         else:
             curr_step = 'short'
             sample = next(short_iter)
-        # except:
-        #     break
-
-        # print('STEP:', curr_step)
 
         last_step = curr_step
         sample = move2device(sample, cfg.device)
@@ -838,8 +816,6 @@ def run_epoch(training_module: Runner, aux_modules: dict, dataloader_short: Data
 
         B = sample.num_graphs
         sample = add_field_to_pyg_batch(sample, 'iter', [global_step] * B, 'cloth', reference_key=None)
-
-        # print('ITER: ', global_step)
 
         if curr_step == 'short':
             ld_to_write = step_short(training_module, global_step, sample, optimizer, scheduler)
