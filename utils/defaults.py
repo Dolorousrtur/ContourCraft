@@ -5,8 +5,15 @@ from munch import munchify
 
 hostname = socket.gethostname()
 
-HOOD_PROJECT = os.environ["HOOD_PROJECT"]
-HOOD_DATA = os.environ["HOOD_DATA"]
+HOOD_PROJECT = "/home/agrigorev/Workdir/00_Projects/ccraft_public"
+HOOD_DATA = "/home/agrigorev/Data/01_Projects/hood_public"
+
+if "HOOD_PROJECT" in os.environ:
+    HOOD_PROJECT = os.environ["HOOD_PROJECT"]
+    HOOD_DATA = os.environ["HOOD_DATA"]
+
+os.environ["HOOD_PROJECT"] = HOOD_PROJECT
+os.environ["HOOD_DATA"] = HOOD_DATA
 
 DEFAULTS = dict()
 
