@@ -10,6 +10,7 @@ import smplx
 import torch
 from smplx import SMPL
 from torch_geometric.data import HeteroData
+from loguru import logger
 
 from utils.coarse import make_coarse_edges
 from utils.common import NodeType, triangles_to_edges, separate_arms
@@ -22,7 +23,7 @@ from utils.io import pickle_load
 @dataclass
 class Config:
     garment_dict_file: str = MISSING  # Path to the garment dict file with data for all garments relative to $HOOD_DATA/aux_data/
-    data_root: str = MISSING  # Path to the data root relative to $HOOD_DATA/
+    data_root: Optional[str] = None   # Path to the data root relative to $HOOD_DATA/
     body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $HOOD_DATA/aux_data/
     model_type: str = 'smpl'  # Type of the body model ('smpl' or 'smplx')
     gender: str = 'female' # Gender of the body model ('male' | 'female' | 'neutral')    
@@ -45,6 +46,13 @@ class Config:
     separate_arms: bool = False  # Whether to separate the arms from the rest of the body (to avoid body self-intersections)
     zero_betas: bool = False  # Whether to set the beta parameters to zero
     button_edges: bool = False  # Whether to load the button edges
+
+    add_uv: bool = False  # Whether to add uv faces and vertices
+
+    n_initialization_frames: int = -1  # Use to start the simulation from canonical geometry and interpolate to the first frame of the sequence
+
+
+    single_sequence: bool = False  # Whether to load a single sequence (used in Inference.ipynb)
     single_sequence_file: Optional[str] = None  # Path to the single sequence to load (used in Inference.ipynb)
     single_sequence_garment: Optional[
         str] = None  # Garment name for the single sequence to load (used in Inference.ipynb)
@@ -53,6 +61,8 @@ class Config:
         str] = None  # Path to the file with the table of beta parameters (used in validation to generate sequences with specific body shapes)
 
     fps: int = 30  # Target FPS for the sequence
+
+    n_frames: int = 100  # (used for if sequence_loader is "cmu_npz_smplx_zeropos") Number of frames in the sequence
 
 def make_obstacle_dict(mcfg: Config) -> dict:
     if mcfg.obstacle_dict_file is None:
@@ -73,9 +83,9 @@ def create_loader(mcfg: Config):
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smpl':
+    elif 'smpl' in mcfg.sequence_loader == 'cmu_npz_':
         mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smplx':
+    elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
 
     body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
@@ -83,7 +93,7 @@ def create_loader(mcfg: Config):
     garment_smpl_model_dict = make_garment_smpl_dict(garments_dict, body_model)
     obstacle_dict = make_obstacle_dict(mcfg)
 
-    if mcfg.single_sequence_file is None:
+    if 'zeropos' not in mcfg.sequence_loader and mcfg.single_sequence_file is None:
         mcfg.data_root = os.path.join(DEFAULTS.data_root, mcfg.data_root)
 
     if mcfg.betas_file is not None:
@@ -99,7 +109,7 @@ def create_loader(mcfg: Config):
 def create(mcfg: Config):
     loader = create_loader(mcfg)
 
-    if mcfg.single_sequence_file is not None:
+    if mcfg.single_sequence or mcfg.single_sequence_file is not None:
         datasplit = pd.DataFrame()
         datasplit['id'] = [mcfg.single_sequence_file]
         datasplit['garment'] = [mcfg.single_sequence_garment]
@@ -347,8 +357,6 @@ class GarmentBuilder:
 
         full_pose = torch.cat(full_pose, dim=1)
 
-
-
         garment_smpl_model = self.garment_smpl_model_dict[garment_name]
         with torch.no_grad():
             vertices = garment_smpl_model.make_vertices(betas=betas, full_pose=full_pose, transl=transl).numpy()
@@ -358,46 +366,6 @@ class GarmentBuilder:
 
         return vertices
 
-    # def make_cloth_verts(self, body_pose: np.ndarray, global_orient: np.ndarray, transl: np.ndarray, betas: np.ndarray,
-    #                      garment_name: str) -> np.ndarray:
-    #     """
-    #     Make vertices of a garment `garment_name` in a given pose
-
-    #     :param body_pose: SMPL pose parameters [Nx69] OR [69]
-    #     :param global_orient: SMPL global_orient [Nx3] OR [3]
-    #     :param transl: SMPL translation [Nx3] OR [3]
-    #     :param betas: SMPL betas [Nx10] OR [10]
-    #     :param garment_name: name of the garment in `self.garment_smpl_model_dict`
-
-    #     :return: vertices [NxVx3]
-    #     """
-    #     body_pose = torch.FloatTensor(body_pose)
-    #     global_orient = torch.FloatTensor(global_orient)
-    #     transl = torch.FloatTensor(transl)
-    #     betas = torch.FloatTensor(betas)
-
-    #     garment_smpl_model = self.garment_smpl_model_dict[garment_name]
-
-    #     if len(body_pose.shape) == 1:
-    #         body_pose = body_pose.unsqueeze(0)
-    #         global_orient = global_orient.unsqueeze(0)
-    #         transl = transl.unsqueeze(0)
-    #     if len(betas.shape) == 1:
-    #         betas = betas.unsqueeze(0)
-
-    #     wholeseq = self.mcfg.wholeseq or body_pose.shape[0] > 1
-    #     full_pose = torch.cat([global_orient, body_pose], dim=1)
-
-    #     if wholeseq and betas.shape[0] == 1:
-    #         betas = betas.repeat(body_pose.shape[0], 1)
-
-    #     with torch.no_grad():
-    #         vertices = garment_smpl_model.make_vertices(betas=betas, full_pose=full_pose, transl=transl).numpy()
-
-    #     if not wholeseq:
-    #         vertices = vertices[0]
-
-    #     return vertices
 
     def add_vertex_type(self, sample: HeteroData, garment_name: str) -> HeteroData:
         """
@@ -613,23 +581,38 @@ class GarmentBuilder:
 
         sample['cloth'].garment_id = torch.LongTensor(garment_id)
         return sample
-    
+
+    def add_uv(self, sample: HeteroData, garment_name: str) -> HeteroData:
+        garment_dict = self.garments_dict[garment_name]
+
+        # TODO: don't add if self.mcfg.add_uv is False
+        if self.mcfg.add_uv and 'verts_uv' not in garment_dict:
+            raise ValueError(f'No UV data for garment {garment_name}')
+        
+        verts_uv = garment_dict['verts_uv']
+        sample['cloth'].uv_coords = torch.FloatTensor(verts_uv)
+
+        faces_uv = garment_dict['faces_uv']
+        sample['cloth'].uv_faces_batch = torch.LongTensor(faces_uv).T
+
+        return sample
+
 
     def add_garment_to_sample(self, sample_full, sample_garment):
 
         if 'cloth' in sample_full.node_types:
             cloth_data_full = sample_full['cloth']
             N_exist = sample_full['cloth'].pos.shape[0]
+            N_uv_exist = sample_full['cloth'].uv_coords.shape[0]
             garment_id = sample_full['cloth'].garment_id.max()+1
         else:
             cloth_data_full = None
             N_exist = 0
+            N_uv_exist = 0
             garment_id = 0
-
 
         cloth_data_garment = sample_garment['cloth']
         N_new = cloth_data_garment.pos.shape[0]
-
 
         if 'garment_id' in sample_garment['cloth']:
             garment_id_tensor = sample_garment['cloth'].garment_id + garment_id
@@ -653,13 +636,29 @@ class GarmentBuilder:
 
 
         for k, v in cloth_data_garment._mapping.items():
+
             if 'batch' in k:
-                v += N_exist
+                if 'uv' in k:
+                    v += N_uv_exist
+                else:
+                    v += N_exist
             if cloth_data_full is not None:
+
+                if k == 'uv_coords':
+                    verts_uv_full = cloth_data_full[k]
+                    verts_uv_garment = v
+
+                    uv_full_max_x = verts_uv_full[:, 0].max()
+                    verts_uv_garment[:, 0] += uv_full_max_x
+                    v = verts_uv_garment
+
                 dim_cat = 1 if 'batch' in k else 0
                 v = torch.cat([cloth_data_full[k], v], dim=dim_cat)
             sample_full['cloth'][k] = v
+            
+
         return sample_full
+
 
 
     def build(self, sample: HeteroData, sequence_dict: dict, idx: int, garment_name: str) -> HeteroData:
@@ -707,6 +706,7 @@ class GarmentBuilder:
         sample_garment = self.add_coarse(sample_garment, garment_name)
         sample_garment = self.add_button_edges(sample_garment, garment_name)
         sample_garment = self.add_garment_id(sample_garment, garment_name)
+        sample_garment = self.add_uv(sample_garment, garment_name)
 
         sample = self.add_garment_to_sample(sample, sample_garment)
 
@@ -773,8 +773,10 @@ class BodyBuilder:
         """
         Add vertex type field to the obstacle object in the sample
         """
+
         N = sample['obstacle'].pos.shape[0]
-        if 'vertex_type' in self.obstacle_dict:
+
+        if 'vertex_type' in self.obstacle_dict and self.obstacle_dict['vertex_type'].shape[0] == N:
             vertex_type = self.obstacle_dict['vertex_type']
         else:
             vertex_type = np.ones((N, 1)).astype(np.int64)
@@ -837,12 +839,13 @@ class Loader:
     """
 
     def __init__(self, mcfg: Config, garments_dict: dict, smpl_model: SMPL,
-                 garment_smpl_model_dict: Dict[str, GarmentSMPL], obstacle_dict: dict, betas_table=None):
+                 garment_smpl_model_dict: Dict[str, GarmentSMPL], obstacle_dict: dict, 
+                 betas_table=None):
         
         sequence_loader_module = importlib.import_module(f'datasets.sequence_loaders.{mcfg.sequence_loader}')
         SequenceLoader = sequence_loader_module.SequenceLoader
 
-        self.sequence_loader = SequenceLoader(mcfg, mcfg.data_root, betas_table=betas_table)
+        self.sequence_loader = SequenceLoader(mcfg, data_path=mcfg.data_root, betas_table=betas_table)
         self.garment_builder = GarmentBuilder(mcfg, garments_dict, garment_smpl_model_dict)
         self.body_builder = BodyBuilder(mcfg, smpl_model, obstacle_dict)
 
@@ -857,7 +860,7 @@ class Loader:
         :param betas_id: index of the beta parameters in self.betas_table (only used to generate validation sequences when comparing to snug/ssch)
         :return: HelteroData object (see BodyBuilder.build and GarmentBuilder.build for details)
         """
-        sequence = self.sequence_loader.load_sequence(fname, betas_id=betas_id)
+        sequence = self.sequence_loader.load_sequence(fname=fname, betas_id=betas_id)
         sample = HeteroData()
         sample = self.body_builder.build(sample, sequence, idx)
 

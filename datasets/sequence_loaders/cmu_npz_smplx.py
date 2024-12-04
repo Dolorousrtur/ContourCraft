@@ -2,6 +2,7 @@
 
 import os
 import pickle
+from ccraft.utils.interpolation import prepend_interpolation_linear, prepend_interpolation_slerp, repeat_first_frame
 import numpy as np
 
 from utils.common import separate_arms
@@ -48,6 +49,13 @@ class SequenceLoader:
         if hasattr(self.mcfg, 'zero_betas') and self.mcfg.zero_betas:
             sequence['betas'] *= 0
 
+        n_steps = sequence['body_pose'].shape[0]
+        if len(sequence['betas'].shape) == 1:
+            sequence['betas'] = np.tile(sequence['betas'][None, :], (n_steps, 1))
+
+        if len(sequence['expression'].shape) == 1:
+            sequence['expression'] = np.tile(sequence['expression'][None, :], (n_steps, 1))
+
         return sequence
     
 
@@ -74,6 +82,21 @@ class SequenceLoader:
                   'left_hand_pose', 'right_hand_pose', 
                   'jaw_pose', 'leye_pose', 'reye_pose']:            
             sequence[k] = sequence[k][::skip_every]
+
+        return sequence
+    
+    def add_initialization_frames(self, sequence: dict) -> dict:
+        n_init_frames = self.mcfg.n_initialization_frames
+
+
+        for k in ['betas', 'expression']:
+            sequence[k] = prepend_interpolation_linear(sequence[k], n_init_frames)
+
+        for k in ['body_pose', 'left_hand_pose', 'right_hand_pose', 'jaw_pose', 'leye_pose', 'reye_pose']:
+            sequence[k] = prepend_interpolation_slerp(sequence[k], n_init_frames)
+
+        for k in ['transl', 'global_orient']:
+            sequence[k] = repeat_first_frame(sequence[k], n_init_frames)
 
         return sequence
 
@@ -104,6 +127,8 @@ class SequenceLoader:
             sequence['betas'] = self.betas_table[betas_id]
 
         sequence = self.process_sequence(sequence)
+
+        sequence = self.add_initialization_frames(sequence)
 
         return sequence
     

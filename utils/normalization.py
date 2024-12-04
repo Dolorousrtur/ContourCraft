@@ -27,6 +27,12 @@ class Normalizer(nn.Module):
 
         self.clip_n_sigmas = clip_n_sigmas
 
+        self.accumulate = True
+
+    def train(self, mode=True):
+        self.accumulate = mode
+        return super().train(mode)
+
     def inverse(self, normalized_batch_data: torch.FloatTensor) -> torch.FloatTensor:
         """
         Inverse transformation of the normalizer.
@@ -90,7 +96,7 @@ class Normalizer(nn.Module):
         std = torch.maximum(std, self._std_epsilon)
         return std
 
-    def forward(self, batched_data: torch.FloatTensor, accumulate: bool = True):
+    def forward(self, batched_data: torch.FloatTensor):
         """
         Normalizes the batched_data with exponential moving average.
         If accumulate is True, accumulates the batched_data statistics.
@@ -101,7 +107,7 @@ class Normalizer(nn.Module):
         :return: [VxC] normalized data
         """
 
-        if accumulate and self._num_accumulations < self._max_accumulations:
+        if self.accumulate and self._num_accumulations < self._max_accumulations:
             self._accumulate(batched_data)
 
         normalized_features = (batched_data - self._mean()) / self._std_with_epsilon()

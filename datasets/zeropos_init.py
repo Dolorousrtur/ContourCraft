@@ -11,9 +11,9 @@ import torch
 from smplx import SMPLX
 from torch_geometric.data import HeteroData
 
-from utils.cloth_and_material import load_obj
+from utils.io import load_obj, pickle_load
 from utils.coarse import make_coarse_edges
-from utils.common import triangles_to_edges, NodeType, pickle_load
+from utils.common import triangles_to_edges, NodeType
 from utils.defaults import DEFAULTS
 from utils.mesh_creation import add_coarse_edges
 import torch_geometric

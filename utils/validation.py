@@ -43,10 +43,6 @@ def apply_material_params(experiment_config, material_dict):
     experiment_config.runner[runner_name].material.bending_coeff_override = material_dict['bending_coeff']
     return experiment_config
 
-
-
-
-
 def load_runner_from_checkpoint(checkpoint_path: str, modules: dict, experiment_config: DictConfig):
     """
     Builds a Runned objcect
@@ -67,19 +63,18 @@ def load_runner_from_checkpoint(checkpoint_path: str, modules: dict, experiment_
     return runner_module, runner
 
 
-
 def create_one_sequence_dataloader(use_config=None, dataset_name=None, **kwargs) -> DataLoader:
     if use_config is not None:
         config_dir = Path(DEFAULTS.project_dir) / 'configs'
         config_path = os.path.join(config_dir, use_config + '.yaml')
         conf_file = OmegaConf.load(config_path)
-
         dataset_name = list(conf_file.dataloader.dataset.keys())[0]
         dataset_config_dict = conf_file.dataloader.dataset[dataset_name]
     else:
         dataset_config_dict = {}
 
     dataset_module = importlib.import_module(f'datasets.{dataset_name}')
+
     DatasetConfig = dataset_module.Config
     create_dataset = dataset_module.create
 
@@ -91,7 +86,8 @@ def create_one_sequence_dataloader(use_config=None, dataset_name=None, **kwargs)
     dataloader = DataloaderModule(dataset, dataloader_config).create_dataloader()
     return dataloader
 
-def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: str, garment_dict_file: str, config=None, **kwargs) -> DataLoader:
+def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: str, 
+                                            garment_dict_file: str, config=None, **kwargs) -> DataLoader:
     data_root, file_name = os.path.split(sequence_path)
     file_name, _ = os.path.splitext(file_name)
 
@@ -104,6 +100,8 @@ def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: st
                                                 **kwargs)
     
     return dataloader
+
+
 
 
 def create_fromanypose_dataloader(pose_sequence_type, pose_sequence_path, garment_template_path, **kwargs) -> DataLoader:

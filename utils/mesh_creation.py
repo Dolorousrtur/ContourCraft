@@ -118,11 +118,12 @@ def approximate_graph_center(G):
 class GarmentCreator:
     def __init__(self, garments_dict_path, body_models_root, model_type, gender, 
                  collect_lbs=True, n_samples_lbs=0, coarse=True, n_coarse_levels=4, 
-                 approximate_center=False, verbose=False):
+                 approximate_center=False, verbose=False, add_uv=False):
         self.garments_dict_path = garments_dict_path
         self.body_models_root = body_models_root
         self.model_type = model_type
         self.gender = gender
+        self.add_uv = add_uv
 
 
         self.collect_lbs = collect_lbs
@@ -155,8 +156,6 @@ class GarmentCreator:
         G = make_graph_from_faces(faces)
 
         components = list(nx.connected_components(G))
-
-        from time import time
 
         cGd_list = []
         for component in components:
@@ -259,17 +258,25 @@ class GarmentCreator:
         return out_dict
     
     def _load_from_obj(self, obj_file):
-        vertices_full, faces_full = load_obj(obj_file, tex_coords=False)
+        obj_dict = {}
 
-        outer_trimesh = trimesh.Trimesh(vertices=vertices_full,
-                                        faces=faces_full, process=True)
+        if self.add_uv:
+            vertices_full, faces_full, verts_uv, faces_uv = load_obj(obj_file, tex_coords=True)
+            obj_dict['verts_uv'] = verts_uv
+            obj_dict['faces_uv'] = faces_uv
+        else:
+            vertices_full, faces_full = load_obj(obj_file, tex_coords=False)
 
-        vertices_full = outer_trimesh.vertices
-        faces_full = outer_trimesh.faces
+        
+        obj_dict['vertices'] = vertices_full
+        obj_dict['faces'] = faces_full
 
-        return vertices_full, faces_full
+        return obj_dict
     
-    def _make_garment_dict_from_verts(self, vertices_full, faces_full, vertices_canonical=None):
+    def _make_garment_dict_from_verts(self, obj_dict, vertices_canonical=None):
+        vertices_full = obj_dict['vertices']
+        faces_full = obj_dict['faces']
+
         if vertices_canonical is None:
             vertices_canonical = vertices_full
         garment_dict = make_restpos_dict(vertices_canonical, faces_full)
@@ -292,6 +299,10 @@ class GarmentCreator:
         garment_dict['gender'] = self.gender
         garment_dict['model_type'] = self.model_type
 
+        if 'verts_uv' in obj_dict:
+            garment_dict['verts_uv'] = obj_dict['verts_uv']
+            garment_dict['faces_uv'] = obj_dict['faces_uv']
+
         return garment_dict
 
     def make_garment_dict(self, obj_file):
@@ -299,8 +310,8 @@ class GarmentCreator:
         Create a dictionary for a garment from an obj file
         """
 
-        vertices_full, faces_full = self._load_from_obj(obj_file)
-        garment_dict = self._make_garment_dict_from_verts(vertices_full, faces_full)
+        obj_dict = self._load_from_obj(obj_file)
+        garment_dict = self._make_garment_dict_from_verts(obj_dict)
 
         return garment_dict
 
@@ -354,3 +365,62 @@ def obj2template(obj_path, verbose=False):
     return out_dict
 
 
+
+
+
+def add_coarse_edges(garment_dict, n_coarse_levels=4, approximate_center=True):
+    n_levels = n_coarse_levels
+
+    faces = garment_dict['faces']
+    G = make_graph_from_faces(faces)
+
+    components = list(nx.connected_components(G))
+
+    cGd_list = []
+    for component in components:
+        cg_dict = dict()
+
+
+        cG = G.subgraph(component)
+        component_ids = np.array(list(component))
+        faces_mask = np.isin(faces, component_ids).all(axis=1)
+
+        faces_component = faces[faces_mask]
+
+        if approximate_center:
+            center_nodes = [approximate_graph_center(cG)]
+        else:
+            center_nodes = nx.center(cG)
+
+        cg_dict['center'] = center_nodes
+        cg_dict['coarse_edges'] = dict()
+
+        for center in center_nodes[:3]:
+            coarse_edges_dict = make_coarse_edges(faces_component, center, n_levels=n_levels)
+            cg_dict['coarse_edges'][center] = coarse_edges_dict
+        cGd_list.append(cg_dict)
+
+    cGdk_list = [d['coarse_edges'].keys() for d in cGd_list]
+    ctuples = list(itertools.product(*cGdk_list))
+
+
+    center_list = []
+    coarse_edges_dict = dict()
+    for ci, ctuple in enumerate(ctuples):
+        center_list.append(ci)
+        coarse_edges_dict[ci] = dict()
+
+        for l in range(n_levels):
+            ce_list = []
+            for i, d in enumerate(cGd_list):
+                ce_list.append(d['coarse_edges'][ctuple[i]][l])
+
+            ce_list = np.concatenate(ce_list, axis=0)
+
+            coarse_edges_dict[ci][l] = ce_list
+
+
+    garment_dict['center'] = np.array(center_list)
+    garment_dict['coarse_edges'] = coarse_edges_dict
+
+    return garment_dict

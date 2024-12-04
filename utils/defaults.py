@@ -5,7 +5,7 @@ from munch import munchify
 
 hostname = socket.gethostname()
 
-HOOD_PROJECT = "/home/agrigorev/Workdir/00_Projects/ccraft_public"
+HOOD_PROJECT = "/home/agrigorev/Workdir/00_Projects/prj4_sandbox/ccraft"
 HOOD_DATA = "/home/agrigorev/Data/01_Projects/hood_public"
 
 if "HOOD_PROJECT" in os.environ:

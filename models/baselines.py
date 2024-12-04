@@ -74,6 +74,13 @@ class Model(nn.Module):
         self.normals_f = VertexNormalsPYG()
         self.i = 0
 
+    def train(self, mode=True):
+        self._output_normalizer.train(mode)
+        self._node_normalizer.train(mode)
+        self._mesh_edge_normalizer.train(mode)
+        self._world_edge_normalizer.train(mode)
+        return super().train(mode)
+
     def embed(self, labels, embedding_layer):
         emb_matrix = embedding_layer.weight.clone().t()
         N = emb_matrix.shape[1]
@@ -130,7 +137,7 @@ class Model(nn.Module):
         relative_pos = pos_senders - pos_receivers
         return relative_pos
 
-    def _create_mesh_edge_set(self, sample, is_training):
+    def _create_mesh_edge_set(self, sample):
         pos = sample['cloth'].pos
         rest_pos = sample['cloth'].rest_pos
         edges = sample['mesh_edge'].edge_index.T
@@ -163,7 +170,7 @@ class Model(nn.Module):
         )
 
         normalizer = self._mesh_edge_normalizer
-        edge_features_normalized = normalizer(edge_features_to_norm, is_training)
+        edge_features_normalized = normalizer(edge_features_to_norm)
         edge_features_final = torch.cat([edge_features_normalized, edge_features_nonorm], dim=-1)
 
         sample = add_field_to_pyg_batch(sample, 'features', edge_features_final, ('cloth', 'mesh_edge', 'cloth'),
@@ -171,7 +178,7 @@ class Model(nn.Module):
 
         return sample
 
-    def _create_world_edge_set(self, sample, is_training):
+    def _create_world_edge_set(self, sample):
         cloth_pos = sample['cloth'].pos
         obstacle_pos = sample['obstacle'].target_pos
         obstacle_prev_pos = sample['obstacle'].pos
@@ -214,7 +221,7 @@ class Model(nn.Module):
 
         features_combined = torch.cat([features_direct, features_inverse])
         N_direct = features_direct.shape[0]
-        features_combined_normalized = normalizer(features_combined, is_training)
+        features_combined_normalized = normalizer(features_combined)
 
         features_direct_normalized = features_combined_normalized[:N_direct]
         features_inverse_normalized = features_combined_normalized[N_direct:]
@@ -278,7 +285,7 @@ class Model(nn.Module):
             sample = add_field_to_pyg_batch(sample, 'node_features', node_features, k, 'pos')
         return sample
 
-    def normalize_node_features(self, sample, is_training):
+    def normalize_node_features(self, sample):
         cloth_node_features = sample['cloth'].node_features
         obstacle_node_features = sample['obstacle'].node_features
         obstacle_active_mask = sample['obstacle'].active_mask[:, 0]
@@ -291,7 +298,7 @@ class Model(nn.Module):
         all_features_to_norm = all_features[:, :-3]
         all_features_nonorm = all_features[:, -3:]
 
-        all_features_normalized = self._node_normalizer(all_features_to_norm, is_training)
+        all_features_normalized = self._node_normalizer(all_features_to_norm)
         all_features_normalized_final = torch.cat([all_features_normalized, all_features_nonorm], dim=-1)
 
         cloth_node_features_normalized = all_features_normalized_final[:N_cloth]
@@ -329,7 +336,7 @@ class Model(nn.Module):
 
         return sample
 
-    def _normalize(self, sample, is_training):
+    def _normalize(self, sample):
         """Builds input graph."""
 
         sample = self.replace_pinned_verts(sample)
@@ -338,14 +345,14 @@ class Model(nn.Module):
         sample = self._add_positional_edges(sample)
         sample = self._make_nodefeatures(sample)
 
-        sample = self._create_mesh_edge_set(sample, is_training)
-        sample = self._create_world_edge_set(sample, is_training)
+        sample = self._create_mesh_edge_set(sample)
+        sample = self._create_world_edge_set(sample)
 
-        sample = self.normalize_node_features(sample, is_training)
+        sample = self.normalize_node_features(sample)
 
         return sample
 
-    def _get_position(self, sample, is_training):
+    def _get_position(self, sample):
         """Integrate model outputs."""
         vertex_type = sample['cloth'].vertex_type
         pinned_mask = vertex_type == NodeType.HANDLE
@@ -372,13 +379,13 @@ class Model(nn.Module):
         sample = add_field_to_pyg_batch(sample, 'pred_velocity', pred_velocity, 'cloth', 'pos')
 
         target_acceleration = target_position - 2 * cur_position + prev_position
-        target_acceleration_norm = self._output_normalizer(target_acceleration, is_training)
+        target_acceleration_norm = self._output_normalizer(target_acceleration)
         sample = add_field_to_pyg_batch(sample, 'target_acceleration', target_acceleration_norm, 'cloth', 'pos')
         return sample
 
-    def forward(self, inputs, is_training=True):  # TODO: set proper .eval() and .train() functions
+    def forward(self, inputs):  # TODO: set proper .eval() and .train() functions
 
-        sample = self._normalize(inputs, is_training=is_training)
+        sample = self._normalize(inputs)
         sample = self._learned_model(sample)
-        sample = self._get_position(sample, is_training=is_training)
+        sample = self._get_position(sample)
         return sample

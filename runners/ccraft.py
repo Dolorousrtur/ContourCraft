@@ -25,6 +25,7 @@ from runners.utils.material import RandomMaterial
 from utils.cloth_and_material import FaceNormals, ClothMatAug
 from utils.common import move2device, save_checkpoint, add_field_to_pyg_batch, copy_pyg_batch, TorchTimer, NodeType
 from utils.defaults import DEFAULTS
+from loguru import logger
 
 
 @dataclass
@@ -161,7 +162,6 @@ class Runner(nn.Module):
             
         cloth_faces = sequence['cloth'].faces_batch.T.cpu().numpy()
         garment_name = sequence.garment_name[0]
-        print('garment_name', garment_name)
         if 'celina' in garment_name:
             faces_mask = (cloth_faces == 8504).any(axis=-1)
             cloth_faces = cloth_faces[~faces_mask]
@@ -180,7 +180,8 @@ class Runner(nn.Module):
         trajectories_dicts['vertex_type'] = sequence['cloth'].vertex_type.cpu().numpy()
 
         if 'uv_coords' in sequence['cloth']:
-            uv_faces = sequence['cloth'].uv_faces_batch.T.cpu().numpy()
+            # uv_faces = sequence['cloth'].uv_faces_batch.T.cpu().numpy()
+            uv_faces = sequence['cloth'].uv_faces_batch.cpu().numpy()
             if faces_mask is not None:
                 uv_faces = uv_faces[~faces_mask]
 
@@ -217,7 +218,6 @@ class Runner(nn.Module):
         sample = self.prepare_sample(sample)
 
         for i in pbar:
-            # print('\n\n')
             sample_step = self.collect_sample(sample, i, prev_out_sample, wholeseq=True)
             if i == 0:
                 # print('NOSOLVE')
@@ -244,11 +244,9 @@ class Runner(nn.Module):
 
             with TorchTimer(metrics_dict, 'hood_time', start=start, end=end):
                 sample_step = self.model(sample_step, is_training=False)
-
-
             ncoll = self.safecheck_solver.calc_tritri_collisions2(sample_step, verts_key='pred_pos')
             metrics_dict['ncoll'].append(ncoll)
-            # print('ncoll', ncoll)
+            print('ncoll', ncoll)
 
             prev_out_sample = sample_step.detach()
 
@@ -492,7 +490,6 @@ class Runner(nn.Module):
         else:
             is_safecheck = iter_num < self.safecheck_until
 
-        print('is_safecheck', is_safecheck)
         if is_safecheck or self.mcfg.cutout_with_attractions:
             sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step)
 
@@ -573,11 +570,11 @@ class Runner(nn.Module):
                 is_training = self.mcfg.short_is_training
             if i == 0 and roll_steps > 1:
                 is_training = False
-
+            self.model.train(is_training)
 
             fake_icontour = is_safecheck_global or not use_wedges
 
-            sample_step = self.model(sample_step, world_edges=use_wedges, is_training=is_training, fake_icontour=fake_icontour)
+            sample_step = self.model(sample_step, world_edges=use_wedges, fake_icontour=fake_icontour)
             loss_dict_hood, loss_weight_dict_hood, gradient_dict, loss_metrics_dict = self.criterion_pass(sample_step, self.criterion_dict_hood)
 
             if use_wedges_seq:
@@ -666,11 +663,12 @@ class Runner(nn.Module):
                 is_training = self.mcfg.long_is_training and (i < self.mcfg.nocollect_after)
             else:
                 is_training = self.mcfg.long_is_training
+            self.model.train(is_training)
 
             fake_icontour = is_safecheck_global or not use_wedges
 
 
-            sample_step = self.model(sample_step, world_edges=use_wedges, is_training=is_training, fake_icontour=fake_icontour)
+            sample_step = self.model(sample_step, world_edges=use_wedges, fake_icontour=fake_icontour)
             loss_dict_hood, loss_weight_dict_hood, gradient_dict, _ = self.criterion_pass(sample_step, self.criterion_dict_hood)
 
 
@@ -800,6 +798,8 @@ def make_random_pin_nobody(sample, mcfg):
 def run_epoch(training_module: Runner, aux_modules: dict, dataloader_short: DataLoader,
               dataloader_long: DataLoader, n_epoch: int, cfg: DictConfig, writer=None, global_step=None):
     global_step = global_step or 0
+
+    training_module.model.train()
 
     optimizer = aux_modules['optimizer']
     scheduler = aux_modules['scheduler']

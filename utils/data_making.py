@@ -20,9 +20,12 @@ def make_slerp(pA: np.ndarray, pB: np.ndarray, n_steps: int, omit_last: bool = T
     :return: [n_steps+1, 3] or [n_steps+2, 3] interpolated rotation vectors
     """
 
+
     times = np.linspace(0.0, 1.0, n_steps + 2)
     if omit_last:
         times = times[:n_steps + 1]
+
+    print('make_slerp::times', times.)
 
     p = np.stack([pA, pB])
     p = R.from_rotvec(p)
