@@ -2,7 +2,7 @@
 
 import os
 import pickle
-from ccraft.utils.interpolation import prepend_interpolation_linear, prepend_interpolation_slerp, repeat_first_frame
+from utils.interpolation import prepend_interpolation_linear, prepend_interpolation_slerp, repeat_first_frame
 import numpy as np
 
 from utils.common import separate_arms
@@ -126,10 +126,10 @@ class SequenceLoader:
         if self.betas_table is not None:
             sequence['betas'] = self.betas_table[betas_id]
 
-        sequence = self.process_sequence(sequence)
 
-        sequence = self.add_initialization_frames(sequence)
+        sequence = self.process_sequence(sequence)
 
         return sequence
     
+
 

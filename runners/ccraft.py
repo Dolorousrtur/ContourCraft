@@ -151,6 +151,7 @@ class Runner(nn.Module):
             st_time = time.time()
 
         st = 0
+        self.model.eval()
         trajectories, metrics_dict = self._rollout(sequence, st, n_samples - st,
                                                     progressbar=True, bare=bare, safecheck=safecheck)
 
@@ -234,7 +235,7 @@ class Runner(nn.Module):
 
 
             with TorchTimer(metrics_dict, 'hood_time', start=start, end=end):
-                sample_step = self.model(sample_step, is_training=False)
+                sample_step = self.model(sample_step)
             ncoll = self.safecheck_solver.calc_tritri_collisions2(sample_step, verts_key='pred_pos')
             metrics_dict['ncoll'].append(ncoll)
 

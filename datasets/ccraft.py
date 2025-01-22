@@ -585,7 +585,9 @@ class GarmentBuilder:
     def add_uv(self, sample: HeteroData, garment_name: str) -> HeteroData:
         garment_dict = self.garments_dict[garment_name]
 
-        # TODO: don't add if self.mcfg.add_uv is False
+        if not self.mcfg.add_uv:
+            return sample
+    
         if self.mcfg.add_uv and 'verts_uv' not in garment_dict:
             raise ValueError(f'No UV data for garment {garment_name}')
         
