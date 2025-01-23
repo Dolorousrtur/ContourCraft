@@ -149,6 +149,18 @@ $HOOD_DATA
 ```
 ## Troubleshooting
 
+### Environment installation
+**Error**: 
+
+```bash
+# when installing pytorch3d
+gcc: fatal error: cannot execute ‘cc1plus’: execvp: No such file or directory
+```
+
+**Solution**:
+
+`conda install gcc=11.4.0 gxx=11.4.0`
+
 ### Visualization with AITviewer
 
 **Error**: 
