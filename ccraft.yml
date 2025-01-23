@@ -1,4 +1,4 @@
-name: ccraft2
+name: ccraft
 channels:
   - pytorch
   - rapidsai
