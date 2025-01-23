@@ -149,17 +149,37 @@ $HOOD_DATA
 ```
 ## Troubleshooting
 
-### Environment installation
-**Error**: 
+### Installing pytorch3d
+Errors happening when running `pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"`
+
+**Error**:
 
 ```bash
-# when installing pytorch3d
+
 gcc: fatal error: cannot execute ‘cc1plus’: execvp: No such file or directory
 ```
 
 **Solution**:
 
 `conda install gcc=11.4.0 gxx=11.4.0`
+
+---
+
+**Error**:
+
+```bash
+...
+site-packages/torch/include/ATen/cuda/CUDAContextLight.h:6:10: fatal error: cuda_runtime_api.h: No such file or directory
+...
+
+```
+
+**Solution**:
+```bash
+# cuda_runtime_api.h whould be located in $CONDA_PREFIX/targets/x86_64-linux/include/
+export CPATH=$CONDA_PREFIX/targets/x86_64-linux/include/:$CPATH
+```
+
 
 ### Visualization with AITviewer
 
