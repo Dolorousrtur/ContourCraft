@@ -894,7 +894,7 @@ class CollisionSolver:
 
 
     @staticmethod
-    def mark_penetrating_faces(sample, threshold=0., dummy=False, object='cloth', update=False):
+    def mark_penetrating_faces(sample, threshold=0., object='cloth', use_target=False):
 
         B = sample.num_graphs
         new_examples = []
@@ -903,29 +903,21 @@ class CollisionSolver:
 
             faces = example[object].faces_batch.T
             pos = example[object].pos
-            # print('dummy', dummy)
-            # print('pos', pos.shape)
 
             if len(pos.shape) == 3:
                 pos = pos[:, 0]
 
-            if dummy:
-                node_mask = torch.ones_like(pos[:, 0]).bool()
-                faces_mask = torch.ones_like(faces[:, :1]).bool()
-                example[object].cutout_mask = node_mask
-                example[object].faces_cutout_mask_batch = faces_mask.T
-                new_examples.append(example)
-
-                continue
 
             collisions_tri = find_close_faces(pos, faces, threshold=threshold)
             unique_faces = torch.unique(collisions_tri[:, :2])
             faces_mask = torch.ones_like(faces[:, 0]).bool()
             faces_mask[unique_faces] = 0
 
-            if update:
-                faces_mask_prev = example[object].faces_cutout_mask_batch[0]
-                faces_mask = torch.logical_and(faces_mask, faces_mask_prev)
+            if use_target:
+                target_pos = example[object].target_pos
+                collisions_tri_next = find_close_faces(target_pos, faces, threshold=threshold)
+                unique_faces_next = torch.unique(collisions_tri_next[:, :2])
+                faces_mask[unique_faces_next] = 0
 
             faces_enabled = faces[faces_mask]
             node_ids = torch.unique(faces_enabled)
@@ -956,8 +948,6 @@ class CollisionSolver:
             faces = example['obstacle'].faces_batch.T
             pos = example['obstacle'].pos
             target_pos = example['obstacle'].target_pos
-            # print('dummy', dummy)
-            # print('pos', pos.shape)
 
             if len(pos.shape) == 3:
                 pos = pos[:, 0]

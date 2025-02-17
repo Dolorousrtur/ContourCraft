@@ -86,11 +86,11 @@ class Config:
     random_pin_nobody: bool = False
     n_random_pin_nobody: int = 2
     nopin_freq: float = 0.
-    long_is_training: bool = True
     short_is_training: bool = True
     no_world_edges_every: int = -1
-    fake_icontour: bool = True
+    always_fake_icontour: bool = False
     cutout_with_attractions: bool = False
+    use_safecheck: bool = False
 
     enable_repulsions: bool = True
     enable_attractions: bool = True
@@ -117,13 +117,6 @@ class Runner(nn.Module):
         self.safecheck_solver = CollisionSolver(mcfg.safecheck)
         self.collision_solver = CollisionPreprocessor(mcfg)
 
-
-        if self.mcfg.enable_attractions_from is not None:
-            self.safecheck_until = self.mcfg.enable_attractions_from
-        elif self.mcfg.enable_attractions:
-            self.safecheck_until = -1
-        else:
-            self.safecheck_until = np.inf
 
         self.short_steps = 0
         self.long_steps = 0
@@ -391,16 +384,6 @@ class Runner(nn.Module):
 
         return metrics_dict
 
-    def collect_penetrating_mask(self, sample_step, sample):
-        penetrating_mask = torch.zeros_like(sample_step['cloth'].pos[:, :1]).bool()
-        sample_step = add_field_to_pyg_batch(sample_step, 'penetrating_mask', penetrating_mask,
-                                             'cloth',
-                                             reference_key='pos')
-        sample = add_field_to_pyg_batch(sample, 'penetrating_mask', penetrating_mask,
-                                        'cloth',
-                                        reference_key='pos')
-        return sample_step, sample
-
     def check_step(self, sample_step, prev=True, threshold=0, to_print=False):
         if self.check_nan_input(sample_step):
             print(f'NAN PRED')
@@ -477,23 +460,10 @@ class Runner(nn.Module):
 
     def prepare_sample(self, sample):
         sample = self._add_cloth_obj(sample)
-        # sample = self.safecheck_solver.mark_penetrating_faces(sample, dummy=True)
-
-        if random.random() < self.mcfg.nopin_freq:
-            sample['cloth'].vertex_type *= 0
         return sample
 
     def update_sample_1st_step(self, sample_step, sample):
-        sample_step, sample = self.collect_penetrating_mask(sample_step, sample)
-
-        iter_num = sample['cloth'].iter[0].item()
-        if self.safecheck_until < 0:
-            is_safecheck = False
-        else:
-            is_safecheck = iter_num < self.safecheck_until
-
-        print('is_safecheck', is_safecheck)
-        if is_safecheck or self.mcfg.cutout_with_attractions:
+        if self.mcfg.use_safecheck:
             sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step)
 
             sample = add_field_to_pyg_batch(sample, 'cutout_mask', sample_step['cloth'].cutout_mask,
@@ -515,6 +485,16 @@ class Runner(nn.Module):
 
             metrics_dict_agg[k] = v
         return metrics_dict_agg
+    
+    def toggle_model(self, curr_step, roll_steps, sample_type):
+        if self.mcfg.nocollect_after > 0:
+            is_training = curr_step < self.mcfg.nocollect_after
+        else:
+            is_training = True                
+        if sample_type == 'short' and curr_step == 0 and roll_steps > 1:
+            is_training = False
+        self.model.train(is_training)
+
 
     def forward_short(self, sample, roll_steps=1, optimizer=None, scheduler=None) -> dict:
         random_ts = (roll_steps == 1)
@@ -533,51 +513,36 @@ class Runner(nn.Module):
             use_wedges_seq = False
 
         iter_num = sample['cloth'].iter[0].item()
-        if self.safecheck_until < 0:
-            is_safecheck_global = False
-        else:
-            is_safecheck_global = iter_num < self.safecheck_until
 
         for i in range(roll_steps):
-            is_safecheck = is_safecheck_global
-
             # print('roll_steps', roll_steps)
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
 
             is_first_step = i == 0
             is_last_step = i == roll_steps - 1
+
             use_wedges = (roll_steps == 1) or (i > 0)
             use_wedges = use_wedges and use_wedges_seq
-
-            if not use_wedges:
-                is_safecheck = False
-            use_ocontour = i > 0
+            is_safecheck = self.mcfg.use_safecheck and use_wedges
 
             sample = self._add_cloth_obj(sample)
             sample_step = self.collect_sample(sample, i, prev_out_sample,
                                               random_ts=random_ts)
-            sample_step = self.safecheck_solver.mark_penetrating_faces_obstacle(sample_step)
+            sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step, object='obstacle', use_target=True) 
 
             if i == 0:
                 sample_step = self.collision_solver.solve(sample_step)
             if i == 1:
                 sample_step, sample = self.update_sample_1st_step(sample_step, sample)
-                # sample_step, sample = self.collect_penetrating_mask(sample_step, sample)
 
             if is_safecheck and i > 0 and not self.check_step(sample_step):
                 break
+            
+            self.toggle_model(i, roll_steps, 'short')
 
-            if self.mcfg.nocollect_after > 0:
-                is_training = self.mcfg.short_is_training and (i < self.mcfg.nocollect_after)
-            else:
-                is_training = self.mcfg.short_is_training
-            if i == 0 and roll_steps > 1:
-                is_training = False
+            fake_icontour = self.mcfg.always_fake_icontour or not use_wedges
 
-
-            fake_icontour = is_safecheck_global or not use_wedges
-
-            sample_step = self.model(sample_step, world_edges=use_wedges, is_training=is_training, fake_icontour=fake_icontour)
+            sample_step = self.model(sample_step, world_edges=use_wedges, fake_icontour=fake_icontour)
             loss_dict_hood, loss_weight_dict_hood, gradient_dict, loss_metrics_dict = self.criterion_pass(sample_step, self.criterion_dict_hood)
 
             if use_wedges_seq:
@@ -635,24 +600,18 @@ class Runner(nn.Module):
         _i = 0
 
         iter_num = sample['cloth'].iter[0].item()
-        if self.safecheck_until < 0:
-            is_safecheck_global = False
-        else:
-            is_safecheck_global = iter_num < self.safecheck_until
 
         for i in range(roll_steps):
-            is_safecheck = is_safecheck_global
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
             is_last_step = i == roll_steps - 1
 
             use_wedges = True
             use_wedges = use_wedges and use_wedges_seq
-            if not use_wedges:
-                is_safecheck = False
+            is_safecheck = self.mcfg.use_safecheck and use_wedges
 
             sample = self._add_cloth_obj(sample)
             sample_step = self.collect_sample(sample, i, prev_out_sample, wholeseq=True)
-            sample_step = self.safecheck_solver.mark_penetrating_faces_obstacle(sample_step)
+            sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step, object='obstacle', use_target=True) 
 
             if i == 0:
                 sample_step = self.collision_solver.solve(sample_step)
@@ -662,15 +621,11 @@ class Runner(nn.Module):
             if is_safecheck and i > 0 and not self.check_step(sample_step):
                 break
 
-            if self.mcfg.nocollect_after > 0:
-                is_training = self.mcfg.long_is_training and (i < self.mcfg.nocollect_after)
-            else:
-                is_training = self.mcfg.long_is_training
-
-            fake_icontour = is_safecheck_global or not use_wedges
+            self.toggle_model(i, roll_steps, 'long')        
+            fake_icontour = self.mcfg.always_fake_icontour or not use_wedges
 
 
-            sample_step = self.model(sample_step, world_edges=use_wedges, is_training=is_training, fake_icontour=fake_icontour)
+            sample_step = self.model(sample_step, world_edges=use_wedges, fake_icontour=fake_icontour)
             loss_dict_hood, loss_weight_dict_hood, gradient_dict, _ = self.criterion_pass(sample_step, self.criterion_dict_hood)
 
 
@@ -707,14 +662,12 @@ class Runner(nn.Module):
         return metrics_dict
 
 
-def create_optimizer(training_module: Runner, mcfg: DictConfig):
-    optimizer = Adam(training_module.model.parameters(), lr=mcfg.lr)
+def create_optimizer(runner: Runner, mcfg: DictConfig):
+    optimizer = Adam(runner.model.parameters(), lr=mcfg.lr)
 
     def sched_fun(step):
         decay = mcfg.decay_rate ** (step // mcfg.decay_steps)
         decay = max(decay, mcfg.decay_min)
-
-        # print(step, decay)
         return decay
 
     scheduler = LambdaLR(optimizer, sched_fun)
@@ -741,26 +694,26 @@ def compute_epoch_size(dataloader_short, dataloader_long, cfg, global_step):
     return total_steps
 
 
-def step_short(training_module, global_step, sample, optimizer, scheduler):
-    roll_steps = 1 + (global_step // training_module.mcfg.increase_roll_every)
-    roll_steps = min(roll_steps, training_module.mcfg.roll_max)
+def step_short(runner, global_step, sample, optimizer, scheduler):
+    roll_steps = 1 + (global_step // runner.mcfg.increase_roll_every)
+    roll_steps = min(roll_steps, runner.mcfg.roll_max)
 
-    if global_step >= training_module.mcfg.warmup_steps:
-        ld_to_write = training_module.forward_short(sample, roll_steps=roll_steps, optimizer=optimizer,
+    if global_step >= runner.mcfg.warmup_steps:
+        ld_to_write = runner.forward_short(sample, roll_steps=roll_steps, optimizer=optimizer,
                                                     scheduler=scheduler)
     else:
-        ld_to_write = training_module.forward_short(sample, roll_steps=roll_steps, optimizer=None, scheduler=None)
+        ld_to_write = runner.forward_short(sample, roll_steps=roll_steps, optimizer=None, scheduler=None)
 
     return ld_to_write
 
 
-def step_long(training_module, sample, optimizer, scheduler):
-    ld_to_write = training_module.forward_long(sample, optimizer=optimizer,
+def step_long(runner, sample, optimizer, scheduler):
+    ld_to_write = runner.forward_long(sample, optimizer=optimizer,
                                                scheduler=scheduler)
     return ld_to_write
 
 
-def make_checkpoint(training_module, aux_modules, cfg, global_step):
+def make_checkpoint(runner, aux_modules, cfg, global_step):
     if global_step < cfg.experiment.n_steps_only_short:
         to_save = global_step % cfg.experiment.save_checkpoint_every == 0
     else:
@@ -778,7 +731,7 @@ def make_checkpoint(training_module, aux_modules, cfg, global_step):
 
         os.makedirs(checkpoints_dir, exist_ok=True)
         checkpoint_path = os.path.join(checkpoints_dir, f"step_{global_step:010d}.pth")
-        save_checkpoint(training_module, aux_modules, cfg, checkpoint_path)
+        save_checkpoint(runner, aux_modules, cfg, checkpoint_path)
 
 
 def make_random_pin_nobody(sample, mcfg):
@@ -797,12 +750,14 @@ def make_random_pin_nobody(sample, mcfg):
     return sample
 
 
-def run_epoch(training_module: Runner, aux_modules: dict, dataloader_short: DataLoader,
-              dataloader_long: DataLoader, n_epoch: int, cfg: DictConfig, writer=None, global_step=None):
+def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, n_epoch: int, cfg: DictConfig, writer=None, global_step=None):
     global_step = global_step or 0
 
     optimizer = aux_modules['optimizer']
     scheduler = aux_modules['scheduler']
+
+    dataloader_short = dataloaders_dict['short']
+    dataloader_long = dataloaders_dict['long']
 
     n_steps = compute_epoch_size(dataloader_short, dataloader_long, cfg, global_step)
 
@@ -819,38 +774,31 @@ def run_epoch(training_module: Runner, aux_modules: dict, dataloader_short: Data
         if cfg.experiment.max_iter is not None and global_step > cfg.experiment.max_iter:
             break
 
-        # try:
         if last_step == 'short' and global_step > cfg.experiment.n_steps_only_short:
             curr_step = 'long'
             sample = next(long_iter)
         else:
             curr_step = 'short'
             sample = next(short_iter)
-        # except:
-        #     break
-
-        # print('STEP:', curr_step)
 
         last_step = curr_step
         sample = move2device(sample, cfg.device)
 
-        sample = make_random_pin_nobody(sample, training_module.mcfg)
+        sample = make_random_pin_nobody(sample, runner.mcfg)
 
         B = sample.num_graphs
         sample = add_field_to_pyg_batch(sample, 'iter', [global_step] * B, 'cloth', reference_key=None)
 
-        # print('ITER: ', global_step)
-
         if curr_step == 'short':
-            ld_to_write = step_short(training_module, global_step, sample, optimizer, scheduler)
+            ld_to_write = step_short(runner, global_step, sample, optimizer, scheduler)
         elif curr_step == 'long':
-            ld_to_write = step_long(training_module, sample, optimizer, scheduler)
+            ld_to_write = step_long(runner, sample, optimizer, scheduler)
         else:
             raise Exception(f'Wrong step label {curr_step}')
 
         if writer is not None:
             writer.write_dict(ld_to_write)
 
-        make_checkpoint(training_module, aux_modules, cfg, global_step)
+        make_checkpoint(runner, aux_modules, cfg, global_step)
 
     return global_step

@@ -92,6 +92,8 @@ class SequenceLoader:
             sequence['betas'] np.array [10]
         """
         filepath = os.path.join(self.data_path, fname)
+        print('data_path', self.data_path)
+        print('filepath', filepath)
         if not filepath.endswith('.npz'):
             filepath += '.npz'
 

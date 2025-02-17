@@ -1,3 +1,4 @@
+from copy import deepcopy
 import importlib
 import os
 import typing
@@ -28,6 +29,7 @@ class ExperimentConfig:
 class DataConfig:
     num_workers: int = 0                   # number of workers for dataloader
     batch_size: int = 1                    # batch size (only 1 is supported)
+    copy_from: Optional[str] = None        # copy data from another dataloader
 
 
 @dataclass
@@ -75,6 +77,21 @@ def load_module(module_type: str, module_config: DictConfig, module_name: str = 
         module_config[module_name] = OmegaConf.merge(default_module_config, module_config[module_name])
     return module
 
+def load_dataset_params(conf):
+    dataset_modules = {}
+
+    for dataloader_name, dataloader_conf in conf.dataloaders.items():
+        dataset_module = load_module('datasets', dataloader_conf.dataset)
+        dataset_modules[dataloader_name] = dataset_module
+
+        if 'copy_from' in dataloader_conf and dataloader_conf.copy_from is not None:
+            new_cfg = deepcopy(conf.dataloaders[dataloader_conf.copy_from])
+            # new_cfg = OmegaConf.merge(new_cfg, dataloader_conf)
+            new_cfg = OmegaConf.merge(dataloader_conf, new_cfg)
+
+            conf.dataloaders[dataloader_name] = new_cfg
+
+    return dataset_modules, conf
 
 def load_params(config_name: str=None, config_dir: str=None):
     """
@@ -119,8 +136,10 @@ def load_params(config_name: str=None, config_dir: str=None):
         criterion_module = load_module('criterions', conf.criterions, criterion_name)
         modules['criterions'][criterion_name] = criterion_module
 
-    dataset_module = load_module('datasets', conf.dataloader.dataset)
-    modules['dataset'] = dataset_module
+    # dataset_module = load_module('datasets', conf.dataloader.dataset)
+    # modules['dataset'] = dataset_module
+
+    modules['datasets'], conf, = load_dataset_params(conf)
 
     return modules, conf
 
@@ -180,7 +199,7 @@ def create_runner(modules: dict, config: DictConfig, create_aux_modules=True):
     return runner_module, runner, aux_modules
 
 
-def create_dataloader_module(modules: dict, config: DictConfig):
+def create_dataloader_modules(modules: dict, config: DictConfig):
     """
     Create a dataloader module.
     :param modules:
@@ -188,10 +207,18 @@ def create_dataloader_module(modules: dict, config: DictConfig):
     :return: DataloaderModule
     """
 
-    # create dataset object and pass it to the dataloader module
-    dataset = create_module(modules['dataset'], config['dataloader']['dataset'])
-    dataloader_m = DataloaderModule(dataset, config['dataloader'])
-    return dataloader_m
+    dataloader_modules = {}
+
+    for dataset_name, dataset_module in modules['datasets'].items():
+        dataset_cfg = config.dataloaders[dataset_name].dataset
+        dataset = create_module(dataset_module, dataset_cfg)
+        dataloader_m = DataloaderModule(dataset, config['dataloader'])
+        dataloader_modules[dataset_name] = dataloader_m
+
+    # # create dataset object and pass it to the dataloader module
+    # dataset = create_module(modules['dataset'], config['dataloader']['dataset'])
+    # dataloader_m = DataloaderModule(dataset, config['dataloader'])
+    return dataloader_modules
 
 
 def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=True):
@@ -208,5 +235,5 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
     """
 
     runner_module, runner, aux_modules = create_runner(modules, config, create_aux_modules=create_aux_modules)
-    dataloader_m = create_dataloader_module(modules, config)
-    return dataloader_m, runner_module, runner, aux_modules
+    dataloader_ms = create_dataloader_modules(modules, config)
+    return dataloader_ms, runner_module, runner, aux_modules
