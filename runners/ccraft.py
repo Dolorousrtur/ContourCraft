@@ -452,12 +452,17 @@ class Runner(nn.Module):
         if self.mcfg.use_safecheck:
             sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step)
 
+            # sample = add_field_to_pyg_batch(sample, 'cutout_mask', sample_step['cloth'].cutout_mask,
+            #                                 'cloth',
+            #                                 reference_key='cutout_mask')
+            # sample = add_field_to_pyg_batch(sample, 'faces_cutout_mask_batch', sample_step['cloth'].faces_cutout_mask_batch,
+            #                                 'cloth',
+            #                                 reference_key='faces_cutout_mask_batch')
+            
             sample = add_field_to_pyg_batch(sample, 'cutout_mask', sample_step['cloth'].cutout_mask,
-                                            'cloth',
-                                            reference_key='cutout_mask')
+                                            'cloth')
             sample = add_field_to_pyg_batch(sample, 'faces_cutout_mask_batch', sample_step['cloth'].faces_cutout_mask_batch,
-                                            'cloth',
-                                            reference_key='faces_cutout_mask_batch')
+                                            'cloth')
         return sample_step, sample
 
     def aggregate_metrics_dict(self, metrics_dict):
