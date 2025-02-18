@@ -865,6 +865,8 @@ class Loader:
 
         self.data_path = mcfg.data_root
 
+        self.mcfg = mcfg
+
     def load_sample(self, fname: str, idx: int, garment_name_full: str, gender: str, betas_id: int) -> HeteroData:
         """
         Build HeteroData object for a single sample

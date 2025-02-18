@@ -41,6 +41,9 @@ class CollisionPreprocessor:
         return direction_upd
 
     def solve(self, sample):
+        if 'obstacle' not in sample.node_types:
+            return sample
+        
         B = sample.num_graphs
         new_example_list = []
         for i in range(B):

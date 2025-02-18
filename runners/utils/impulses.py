@@ -896,6 +896,10 @@ class CollisionSolver:
     @staticmethod
     def mark_penetrating_faces(sample, threshold=0., object='cloth', use_target=False):
 
+        if object=='obstacle' and 'obstacle' not in sample.node_types:
+            return sample
+
+
         B = sample.num_graphs
         new_examples = []
         for i in range(B):
