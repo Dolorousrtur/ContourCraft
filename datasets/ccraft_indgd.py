@@ -167,19 +167,20 @@ class VertexBuilder:
 
         return verts
 
-    def pad_lookup(self, lookup: np.ndarray) -> np.ndarray:
+    def pad_verts(self, vertices: np.ndarray, n_steps) -> np.ndarray:
         """
-        Pad the lookup sequence to the required number of steps.
+        Pad the vertex sequence to the required number of steps.
         """
-        n_lookup = lookup.shape[0]
-        n_topad = self.mcfg.lookup_steps - n_lookup
+        n_lookup = vertices.shape[0]
+        n_topad = n_steps - n_lookup
+        # n_topad = self.mcfg.lookup_steps - n_lookup
 
         if n_topad == 0:
-            return lookup
+            return vertices
 
-        padlist = [lookup] + [lookup[-1:]] * n_topad
-        lookup = np.concatenate(padlist, axis=0)
-        return lookup
+        padlist = [vertices] + [vertices[-1:]] * n_topad
+        vertices = np.concatenate(padlist, axis=0)
+        return vertices
 
     def pos2tensor(self, pos: np.ndarray) -> torch.Tensor:
         """
@@ -253,12 +254,14 @@ class VertexBuilder:
             # pos_dict["pos"] = all_vertices[1:2]
             # pos_dict["target_pos"] = all_vertices[2:3]
 
+
+            all_vertices = self.pad_verts(all_vertices, self.mcfg.lookup_steps+3)
+
             pos_dict["prev_pos"] = all_vertices[0]
             pos_dict["pos"] = all_vertices[1]
             pos_dict["target_pos"] = all_vertices[2]
 
             lookup = all_vertices[2:]
-            lookup = self.pad_lookup(lookup)
 
             pos_dict["lookup"] = lookup
 
