@@ -4,7 +4,7 @@ import importlib
 import os
 import pickle
 from dataclasses import dataclass, MISSING
-import random
+from random import random
 from typing import Optional, Dict, Tuple
 
 import numpy as np
@@ -52,7 +52,6 @@ class Config:
     single_sequence_file: Optional[str] = None  # Path to the single sequence to load (used in Inference.ipynb)
     single_sequence_garment: Optional[
         str] = None  # Garment name for the single sequence to load (used in Inference.ipynb)
-    gender: str = 'female' # Gender of the body model ('male' | 'female' | 'neutral')  Only used if single_sequence_file is not None
 
     betas_file: Optional[
         str] = None  # Path to the file with the table of beta parameters (used in validation to generate sequences with specific body shapes)

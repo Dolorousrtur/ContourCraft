@@ -57,7 +57,6 @@ dataloaders:
         data_root: ''
         body_model_root: 'body_models'
         sequence_loader: 'cmu_npz_smpl'
-        gender: 'female'
         garment_dicts_dir: 'garment_dicts'
         obstacle_dict_file: 'smpl_aux.pkl'
         split_path: 'datasplits/train_ccraft.csv'
@@ -68,7 +67,6 @@ dataloaders:
         separate_arms: True
         wholeseq: False
         lookup_steps: 20
-        noise_scale: 0
         nobody_freq: 0.5
 
   long:
