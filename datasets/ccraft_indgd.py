@@ -4,6 +4,7 @@ import importlib
 import os
 import pickle
 from dataclasses import dataclass, MISSING
+import random
 from typing import Optional, Dict, Tuple
 
 import numpy as np
@@ -56,6 +57,7 @@ class Config:
     betas_file: Optional[
         str] = None  # Path to the file with the table of beta parameters (used in validation to generate sequences with specific body shapes)
 
+    nobody_freq: float = 0.
     fps: int = 30  # Target FPS for the sequence
 
 def make_obstacle_dict(mcfg: Config) -> dict:
@@ -878,13 +880,17 @@ class Loader:
         idx = idx // sequence['subsample']
 
         sample = HeteroData()
-        sample = self.body_builder.build(sample, sequence, idx, gender)
+        # sample = self.body_builder.build(sample, sequence, idx, gender)
 
         garment_names = garment_name_full.split(',')
         garment_names = [x.strip() for x in garment_names]
 
         for garment_name in garment_names:
             sample = self.garment_builder.build(sample, sequence, idx, garment_name)
+
+        if random() > self.mcfg.nobody_freq:
+            sample = self.body_builder.build(sample, sequence, idx, gender)
+
             
         return sample
 
