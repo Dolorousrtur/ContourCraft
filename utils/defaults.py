@@ -19,7 +19,20 @@ if hostname == 'ohws68.inf.ethz.ch':
     DEFAULTS['aux_data'] = os.path.join(HOOD_DATA, 'aux_data')
     DEFAULTS['project_dir'] = HOOD_PROJECT
     DEFAULTS['experiment_root'] = "/media/sdb/Data/experiments/"
+elif hostname == 'ait-server-04.inf.ethz.ch':
+    HOOD_PROJECT = "/local/home/agrigorev/Workdir/contourcraft_private"
+    HOOD_DATA = "/data/agrigorev/02_Projects/ccraft_data"
 
+
+    DEFAULTS['server'] = 'server4'
+    DEFAULTS['CMU_root'] = '/data/agrigorev/00_Datasets/AMASS/smpl/CMU'
+    DEFAULTS['data_root'] = HOOD_DATA
+    DEFAULTS['aux_data'] = os.path.join(HOOD_DATA, 'aux_data')
+    DEFAULTS['project_dir'] = HOOD_PROJECT
+
+    DEFAULTS['experiment_root'] = "/data/agrigorev/experiments/"
+
+    pass
 else:
     HOOD_PROJECT = os.environ["HOOD_PROJECT"]
     HOOD_DATA = os.environ["HOOD_DATA"]
