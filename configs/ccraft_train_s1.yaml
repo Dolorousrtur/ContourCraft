@@ -62,12 +62,14 @@ dataloaders:
         obstacle_dict_file: 'smpl_aux.pkl'
         split_path: 'datasplits/train_ccraft.csv'
         pinned_verts: True
-        random_betas: False
+        random_betas: True
+        betas_scale: 3.
         n_coarse_levels: 4
         separate_arms: True
         wholeseq: False
         lookup_steps: 20
         noise_scale: 0
+        nobody_freq: 0.5
 
   long:
     copy_from: short
