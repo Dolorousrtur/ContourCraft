@@ -5,21 +5,15 @@ from utils.io import pickle_load
 
 
 class SampleCollector:
-    def __init__(self, mcfg, obstacle=True, changing_rest=False, body_pred=False, cloth_pred=True):
+    def __init__(self, mcfg, obstacle=True, changing_rest=False, cloth_pred=True):
         self.mcfg = mcfg
         self.obstacle = obstacle
         self.changing_rest = changing_rest
         self.objects = ['cloth', 'obstacle'] if self.obstacle else ['cloth']
-        self.body_pred = body_pred
         self.cloth_pred= cloth_pred
 
     def copy_from_prev(self, sample, prev_sample):
         if prev_sample is None:
-            if self.body_pred:
-                dn = torch.zeros_like(sample['obstacle'].pos[:, :1])
-                add_field_to_pyg_batch(sample, 'dn', dn, 'obstacle', 'pos')
-            else:
-                'NO BODY PREV'
             return sample
 
         sample['cloth'].prev_pos = prev_sample['cloth'].pos.detach()
@@ -31,17 +25,7 @@ class SampleCollector:
 
         if self.obstacle and 'obstacle' in sample.node_types:
             sample['obstacle'].prev_pos = prev_sample['obstacle'].pos
-
-            if not self.body_pred:
-                sample['obstacle'].pos = prev_sample['obstacle'].target_pos
-            else:
-                sample['obstacle'].dn = prev_sample['obstacle'].pred_dn.detach()
-                sample['obstacle'].pos = prev_sample['obstacle'].pred_pos.detach()
-
-
-            if 'curr_pn' in sample['obstacle']:
-                sample['obstacle'].prev_pn = prev_sample['obstacle'].curr_pn
-                sample['obstacle'].pn = prev_sample['obstacle'].target_pn
+            sample['obstacle'].pos = prev_sample['obstacle'].target_pos
 
         return sample
 
@@ -136,10 +120,6 @@ class SampleCollector:
                 v = v[:, idx]
                 sample[obj][k] = v
 
-
-        if 'obstacle' in sample.node_types and 'curr_pn' in sample['obstacle']:
-            for k in ['curr_pn', 'prev_pn', 'target_pn']:
-                sample['obstacle'][k] = sample['obstacle'][k][:, idx]
         return sample
 
 

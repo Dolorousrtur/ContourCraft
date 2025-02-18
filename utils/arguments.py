@@ -19,7 +19,9 @@ class ExperimentConfig:
     n_epochs: int = 200                     # number of epochs
     checkpoint_path: Optional[str] = None   # path to checkpoint to load
     max_iter: Optional[int] = None          # max number of iterations
-
+    initial_ts: float = 1/3
+    regular_ts: float = 1/30
+    
     enable_repulsions: bool = False
     enable_attractions: bool = False
     enable_attractions_from: Optional[int] = None
@@ -81,15 +83,14 @@ def load_dataset_params(conf):
     dataset_modules = {}
 
     for dataloader_name, dataloader_conf in conf.dataloaders.items():
-        dataset_module = load_module('datasets', dataloader_conf.dataset)
-        dataset_modules[dataloader_name] = dataset_module
 
         if 'copy_from' in dataloader_conf and dataloader_conf.copy_from is not None:
             new_cfg = deepcopy(conf.dataloaders[dataloader_conf.copy_from])
-            # new_cfg = OmegaConf.merge(new_cfg, dataloader_conf)
-            new_cfg = OmegaConf.merge(dataloader_conf, new_cfg)
-
+            new_cfg = OmegaConf.merge(new_cfg, dataloader_conf)
             conf.dataloaders[dataloader_name] = new_cfg
+
+        dataset_module = load_module('datasets', dataloader_conf.dataset)
+        dataset_modules[dataloader_name] = dataset_module
 
     return dataset_modules, conf
 

@@ -75,6 +75,7 @@ class SequenceLoader:
                   'jaw_pose', 'leye_pose', 'reye_pose']:            
             sequence[k] = sequence[k][::skip_every]
 
+        sequence['subsample'] = skip_every
         return sequence
 
     def load_sequence(self, fname: str, betas_id: int=None) -> dict:

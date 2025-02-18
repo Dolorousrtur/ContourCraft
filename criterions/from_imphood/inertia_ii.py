@@ -1,12 +1,16 @@
 from dataclasses import dataclass
 
+import torch
 from omegaconf import II
 from torch import nn
+
+from utils.common import add_field_to_pyg_batch
 
 
 @dataclass
 class Config:
     weight: float = 1.
+    ts_agnostic: bool = II("ts_agnostic")
     initial_ts: float = II("experiment.initial_ts")
 
 
@@ -34,12 +38,20 @@ class Criterion(nn.Module):
         else:
             ts = timestep[0]
 
+        if self.mcfg.ts_agnostic:
+            velocity_dx = velocity * timestep[0]
+        else:
+            velocity_dx = velocity
+
+
         mass = cloth_sample.v_mass
 
         B = sample.num_graphs
 
-        x_hat = pos + velocity
+        x_hat = pos + velocity_dx
         x_diff = pred_pos - x_hat
+
+
         num = (x_diff * mass * x_diff).sum(dim=-1).unsqueeze(1)
 
         den = 2 * ts ** 2
