@@ -239,10 +239,7 @@ class CollisionSolver:
         timestep = state['cloth'].timestep
 
 
-        if self.mcfg.ts_agnostic:
-            velocity_dx = velocity * timestep[0]
-        else:
-            velocity_dx = velocity
+        velocity_dx = velocity
 
         mass = state['cloth'].v_mass.clone()
 
@@ -338,9 +335,6 @@ class CollisionSolver:
         #     velocity = velocity.float()
         # print('RIZ steps:\t\t', iter)
         state['cloth'].pred_pos = verts1
-
-        if self.mcfg.ts_agnostic:
-            velocity = velocity_dx / timestep[0]
 
         # print('RIZ_VELO_REWRITE', RIZ_VELO_REWRITE)
         if RIZ_VELO_REWRITE:
@@ -654,10 +648,6 @@ class CollisionSolver:
 
         pred_pos = state['cloth'].pred_pos + vertex_dx_sum
         timestep = state['cloth'].timestep
-
-        if self.mcfg.ts_agnostic:
-            vertex_dv_sum = vertex_dv_sum / timestep[0]
-
 
         pred_velocity = state['cloth'].pred_velocity + vertex_dv_sum
 

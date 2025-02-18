@@ -111,8 +111,9 @@ def load_params(config_name: str=None, config_dir: str=None):
     # Load default config from MainConfig and merge in cli parameters
     conf = OmegaConf.structured(MainConfig)
     struct_fix(conf)
+
+    conf_cli = OmegaConf.from_cli()
     if config_name is None:
-        conf_cli = OmegaConf.from_cli()
         config_name = conf_cli.config
         conf = OmegaConf.merge(conf, conf_cli)
 
@@ -123,6 +124,7 @@ def load_params(config_name: str=None, config_dir: str=None):
     OmegaConf.set_struct(conf, False)
     OmegaConf.set_struct(conf_file, False)
     conf = OmegaConf.merge(conf, conf_file)
+    conf = OmegaConf.merge(conf, conf_cli)
 
     # Load modules from config
     modules = {}
