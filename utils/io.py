@@ -89,3 +89,19 @@ def pickle_dump(loadout, file):
 
     with open(file, 'wb') as f:
         pickle.dump(loadout, f)
+
+
+def trajectory_to_obj(trajectory, ind, objfile):
+    vertices = trajectory['pred'][ind]
+    faces = trajectory['cloth_faces']
+
+    if 'uv_coords' not in trajectory:
+        save_obj(objfile, vertices, faces)
+    else:
+        verts_uv = trajectory['uv_coords']
+        faces_uv = trajectory['uv_faces']
+
+        print('verts_uv', verts_uv.shape)
+        print('faces_uv', faces_uv.shape)
+
+        save_obj(objfile, vertices, faces, verts_uv, faces_uv)

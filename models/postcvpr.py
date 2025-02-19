@@ -71,6 +71,13 @@ class Model(nn.Module):
         self.normals_f = VertexNormalsPYG()
         self.i = 0
 
+    def train(self, mode=True):
+        self._output_normalizer.train(mode)
+        self._node_normalizer.train(mode)
+        self._mesh_edge_normalizer.train(mode)
+        self._world_edge_normalizer.train(mode)
+        return super().train(mode)
+
     def embed(self, labels, embedding_layer):
         """
         Helper function to use nn.Embedding layer
@@ -141,7 +148,7 @@ class Model(nn.Module):
         relative_pos = pos_senders - pos_receivers
         return relative_pos
 
-    def create_mesh_edge_set(self, sample, is_training, edge_label, normalizer):
+    def create_mesh_edge_set(self, sample, edge_label, normalizer):
         """
         Constructs feature vector for each edge of type `edge_label` (either mesh_edge or coarse_edgeX) in the graph (See Supplementary Material for details)
         """
@@ -180,7 +187,7 @@ class Model(nn.Module):
             lame_lambda], dim=-1
         )
 
-        edge_features_normalized = normalizer(edge_features_to_norm, is_training)  # (e, 9)
+        edge_features_normalized = normalizer(edge_features_to_norm)  # (e, 9)
         edge_features_final = torch.cat([edge_features_normalized, edge_features_nonorm], dim=-1)  # (e, 12)
 
         sample = add_field_to_pyg_batch(sample, 'features', edge_features_final, ('cloth', edge_label, 'cloth'),
@@ -188,7 +195,7 @@ class Model(nn.Module):
 
         return sample
 
-    def create_world_edge_set(self, sample, is_training):
+    def create_world_edge_set(self, sample):
         """
         Constructs feature vector for each body edge in the graph (See Supplementary Material for details)
         """
@@ -237,7 +244,7 @@ class Model(nn.Module):
         # (2e, 9)
         features_combined = torch.cat([features_direct, features_inverse])
         N_direct = features_direct.shape[0]
-        features_combined_normalized = normalizer(features_combined, is_training)
+        features_combined_normalized = normalizer(features_combined)
 
         features_direct_normalized = features_combined_normalized[:N_direct]  # (e, 9)
         features_inverse_normalized = features_combined_normalized[N_direct:]  # (e, 9)
@@ -310,7 +317,7 @@ class Model(nn.Module):
             sample = add_field_to_pyg_batch(sample, 'node_features', node_features, k, 'pos')
         return sample
 
-    def normalize_node_features(self, sample, is_training):
+    def normalize_node_features(self, sample):
         cloth_node_features = sample['cloth'].node_features
         obstacle_node_features = sample['obstacle'].node_features
         obstacle_active_mask = sample['obstacle'].active_mask[:, 0]
@@ -325,7 +332,7 @@ class Model(nn.Module):
         all_features_to_norm = all_features[:, :-3]
         all_features_nonorm = all_features[:, -3:]
 
-        all_features_normalized = self._node_normalizer(all_features_to_norm, is_training)
+        all_features_normalized = self._node_normalizer(all_features_to_norm)
         all_features_normalized_final = torch.cat([all_features_normalized, all_features_nonorm], dim=-1)
 
         cloth_node_features_normalized = all_features_normalized_final[:N_cloth]
@@ -373,7 +380,7 @@ class Model(nn.Module):
 
         return sample
 
-    def prepare_inputs(self, sample, is_training):
+    def prepare_inputs(self, sample):
         """Builds input graph with input feature vector for each node and edge"""
 
         # replace pinned vertices with their target positions
@@ -386,22 +393,22 @@ class Model(nn.Module):
         sample = self.make_nodefeatures(sample)
 
         # make feature vectors for mesh edges and normalize them
-        sample = self.create_mesh_edge_set(sample, is_training, 'mesh_edge', self._mesh_edge_normalizer)
+        sample = self.create_mesh_edge_set(sample, 'mesh_edge', self._mesh_edge_normalizer)
 
         # make feature vectors for each set of coarse edges and normalize them
         for i in range(self.n_coarse_levels):
             key = f'coarse_edge{i}'
-            sample = self.create_mesh_edge_set(sample, is_training, key, self._mesh_edge_normalizer)
+            sample = self.create_mesh_edge_set(sample, key, self._mesh_edge_normalizer)
 
         # make feature vectors for body edges and normalize them
-        sample = self.create_world_edge_set(sample, is_training)
+        sample = self.create_world_edge_set(sample)
 
         # normalize nodes' feature vectors
-        sample = self.normalize_node_features(sample, is_training)
+        sample = self.normalize_node_features(sample)
 
         return sample
 
-    def get_position(self, sample, is_training):
+    def get_position(self, sample):
         """
         Unnormalize model's outputs to get accelerations for each garment node.
         Then, integrate the garment geometry forward in time to get the next position.
@@ -439,11 +446,11 @@ class Model(nn.Module):
 
         # Pass lbs-based accelerations through the normalizer to gather statistics
         target_acceleration = target_position - 2 * cur_position + prev_position
-        target_acceleration_norm = self._output_normalizer(target_acceleration, is_training)
+        target_acceleration_norm = self._output_normalizer(target_acceleration)
         sample = add_field_to_pyg_batch(sample, 'target_acceleration', target_acceleration_norm, 'cloth', 'pos')
         return sample
 
-    def forward(self, sample, is_training=True):
+    def forward(self, sample):
         """
         Forward pass. Predicts axxelerations for each garment node and computes their posiions in the next frame.
 
@@ -481,7 +488,6 @@ class Model(nn.Module):
                 sample['cloth', 'mesh_edge', 'cloth'].edge_index: (2, e) tensor with node index pairs for mesh edges
                 sample['cloth', 'coarse_edgeX', 'cloth'].edge_index: (2, e) tensor with node index pairs for X's level of coarse edges
 
-        :param is_training: whether to update statistics used for normalization
 
         :return:
             sample: updated torch_geometric Batch with following fields added:
@@ -491,7 +497,7 @@ class Model(nn.Module):
                     pred_pos: (v, 3) tensor with predicted positions of cloth vertices (sample['cloth'].pos + sample['cloth'].pred_velocity)
 
         """
-        sample = self.prepare_inputs(sample, is_training=is_training)
+        sample = self.prepare_inputs(sample)
         sample = self._learned_model(sample)
-        sample = self.get_position(sample, is_training=is_training)
+        sample = self.get_position(sample)
         return sample

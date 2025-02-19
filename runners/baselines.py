@@ -117,6 +117,8 @@ class Runner(nn.Module):
         gt_trajectory = []
         obstacle_trajectory = []
 
+        self.model.eval()
+
         metrics_dict = defaultdict(list)
 
         pbar = range(start_idx, start_idx + n_steps)
@@ -130,7 +132,7 @@ class Runner(nn.Module):
             if i == start_idx:
                 state = self._remove_collisions(state)
             with torch.no_grad():
-                state = self.model(state, is_training=False)
+                state = self.model(state)
             trajectory.append(state['cloth'].pred_pos)
             gt_trajectory.append(state['cloth'].target_pos)
             obstacle_trajectory.append(state['obstacle'].target_pos)
@@ -404,6 +406,8 @@ def create_optimizer(training_module: Runner, mcfg: DictConfig):
 def run_epoch(training_module: Runner, aux_modules: dict, dataloader: DataLoader,
               n_epoch: int, cfg: DictConfig, global_step=None):
     global_step = global_step or len(dataloader) * n_epoch
+
+    training_module.model.train()
 
     optimizer = aux_modules['optimizer']
     scheduler = aux_modules['scheduler']

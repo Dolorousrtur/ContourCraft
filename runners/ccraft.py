@@ -25,6 +25,7 @@ from runners.utils.material import RandomMaterial
 from utils.cloth_and_material import FaceNormals, ClothMatAug
 from utils.common import move2device, save_checkpoint, add_field_to_pyg_batch, copy_pyg_batch, TorchTimer, NodeType
 from utils.defaults import DEFAULTS
+from loguru import logger
 
 
 @dataclass
@@ -144,6 +145,7 @@ class Runner(nn.Module):
             st_time = time.time()
 
         st = 0
+        self.model.eval()
         trajectories, metrics_dict = self._rollout(sequence, st, n_samples - st,
                                                     progressbar=True, bare=bare, safecheck=safecheck)
 
@@ -201,10 +203,6 @@ class Runner(nn.Module):
         for i in pbar:
             sample_step = self.collect_sample(sample, i, prev_out_sample)
             if i == 0:
-                # print('NOSOLVE')
-
-                # print('SOLVE')
-                # sample_step = self.collision_solver.solve(sample_step)
                 sample_step, sample = self.update_sample_1st_step(sample_step, sample)
 
             if i == 0:
@@ -224,12 +222,9 @@ class Runner(nn.Module):
 
 
             with TorchTimer(metrics_dict, 'hood_time', start=start, end=end):
-                sample_step = self.model(sample_step, is_training=False)
-
-
+                sample_step = self.model(sample_step)
             ncoll = self.safecheck_solver.calc_tritri_collisions2(sample_step, verts_key='pred_pos')
             metrics_dict['ncoll'].append(ncoll)
-            # print('ncoll', ncoll)
 
             prev_out_sample = sample_step.detach()
 
@@ -750,6 +745,8 @@ def make_random_pin_nobody(sample, mcfg):
 
 def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, cfg: DictConfig, writer=None, global_step=None):
     global_step = global_step or 0
+
+    training_module.model.train()
 
     optimizer = aux_modules['optimizer']
     scheduler = aux_modules['scheduler']

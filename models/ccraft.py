@@ -841,7 +841,7 @@ class Model(nn.Module):
 
         return sample
 
-    def forward(self, inputs, is_training=True, world_edges=True, fake_icontour=False): 
+    def forward(self, inputs, world_edges=True, fake_icontour=False): 
         inputs = self.add_icontour(inputs, world_edges, fake_icontour)
         sample = self.prepare_inputs(inputs, is_world_edges=world_edges, fake_icontour=fake_icontour)
         sample = self._learned_model(sample)
