@@ -507,10 +507,8 @@ class Runner(nn.Module):
         iter_num = sample['cloth'].iter[0].item()
 
         for i in range(roll_steps):
-            print('i', i)
+            # print('short i', i)
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
-
-            example = sample.get_example(0)
 
             is_first_step = i == 0
             is_last_step = i == roll_steps - 1
@@ -582,7 +580,10 @@ class Runner(nn.Module):
 
     def forward_long(self, sample, optimizer=None, scheduler=None) -> dict:
         sample = self.prepare_sample(sample)
-        roll_steps = sample['cloth'].pos.shape[1]
+
+
+        # print('pos', sample['cloth'].lookup.shape)
+        roll_steps = sample['cloth'].lookup.shape[1]
 
         self.long_steps += 1
         use_wedges_seq = True
@@ -596,6 +597,7 @@ class Runner(nn.Module):
         iter_num = sample['cloth'].iter[0].item()
 
         for i in range(roll_steps):
+            # print('long i', i)
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
             is_last_step = i == roll_steps - 1
 
