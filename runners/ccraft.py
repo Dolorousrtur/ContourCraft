@@ -746,7 +746,7 @@ def make_random_pin_nobody(sample, mcfg):
 def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, cfg: DictConfig, writer=None, global_step=None):
     global_step = global_step or 0
 
-    training_module.model.train()
+    runner.model.train()
 
     optimizer = aux_modules['optimizer']
     scheduler = aux_modules['scheduler']
