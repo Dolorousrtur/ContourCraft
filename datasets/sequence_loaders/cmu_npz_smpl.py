@@ -24,6 +24,8 @@ class SequenceLoader:
         :return: processed dict with SMPL parameters
         """
 
+        print('self.mcfg.separate_arms', self.mcfg.separate_arms)
+
         # from SNUG, eliminates hand-body penetrations
         if self.mcfg.separate_arms:
             body_pose = sequence['body_pose']

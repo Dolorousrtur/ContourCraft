@@ -78,6 +78,7 @@ class Config:
     warmup_steps: int = 100
     increase_roll_every: int = 5000
     roll_max: int = 5
+    roll_max_long: int = 300
     push_eps: float = 2e-3
     grad_clip: Optional[float] = 1.
     overwrite_pos_every_step: bool = False
@@ -595,6 +596,7 @@ class Runner(nn.Module):
         _i = 0
 
         iter_num = sample['cloth'].iter[0].item()
+        roll_steps = min(roll_steps, self.mcfg.roll_max_long)
 
         for i in range(roll_steps):
             # print('long i', i)
