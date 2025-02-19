@@ -884,11 +884,10 @@ class CollisionSolver:
 
 
     @staticmethod
-    def mark_penetrating_faces(sample, threshold=0., object='cloth', use_target=False):
+    def mark_penetrating_faces(sample, threshold=0., object='cloth', use_target=False, dummy=False):
 
         if object=='obstacle' and 'obstacle' not in sample.node_types:
             return sample
-
 
         B = sample.num_graphs
         new_examples = []
@@ -900,6 +899,15 @@ class CollisionSolver:
 
             if len(pos.shape) == 3:
                 pos = pos[:, 0]
+
+            if dummy:
+                node_mask = torch.ones_like(pos[:, 0]).bool()
+                faces_mask = torch.ones_like(faces[:, :1]).bool()
+                example[object].cutout_mask = node_mask
+                example[object].faces_cutout_mask_batch = faces_mask.T
+                new_examples.append(example)
+                # assert False, "dummy"
+                continue
 
 
             collisions_tri = find_close_faces(pos, faces, threshold=threshold)

@@ -445,6 +445,7 @@ class Runner(nn.Module):
         return sample_step, metrics_dict, True
 
     def prepare_sample(self, sample):
+        sample = self.safecheck_solver.mark_penetrating_faces(sample, dummy=True)
         sample = self._add_cloth_obj(sample)
         return sample
 
@@ -452,17 +453,17 @@ class Runner(nn.Module):
         if self.mcfg.use_safecheck:
             sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step)
 
-            # sample = add_field_to_pyg_batch(sample, 'cutout_mask', sample_step['cloth'].cutout_mask,
-            #                                 'cloth',
-            #                                 reference_key='cutout_mask')
-            # sample = add_field_to_pyg_batch(sample, 'faces_cutout_mask_batch', sample_step['cloth'].faces_cutout_mask_batch,
-            #                                 'cloth',
-            #                                 reference_key='faces_cutout_mask_batch')
-            
             sample = add_field_to_pyg_batch(sample, 'cutout_mask', sample_step['cloth'].cutout_mask,
-                                            'cloth')
+                                            'cloth',
+                                            reference_key='cutout_mask')
             sample = add_field_to_pyg_batch(sample, 'faces_cutout_mask_batch', sample_step['cloth'].faces_cutout_mask_batch,
-                                            'cloth')
+                                            'cloth',
+                                            reference_key='faces_cutout_mask_batch')
+            
+            # sample = add_field_to_pyg_batch(sample, 'cutout_mask', sample_step['cloth'].cutout_mask,
+            #                                 'cloth')
+            # sample = add_field_to_pyg_batch(sample, 'faces_cutout_mask_batch', sample_step['cloth'].faces_cutout_mask_batch,
+            #                                 'cloth')
         return sample_step, sample
 
     def aggregate_metrics_dict(self, metrics_dict):
@@ -506,7 +507,10 @@ class Runner(nn.Module):
         iter_num = sample['cloth'].iter[0].item()
 
         for i in range(roll_steps):
+            print('i', i)
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
+
+            example = sample.get_example(0)
 
             is_first_step = i == 0
             is_last_step = i == roll_steps - 1
