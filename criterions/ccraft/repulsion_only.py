@@ -6,7 +6,7 @@ from omegaconf import II
 from torch import nn
 
 from utils.cloth_and_material import FaceNormals
-from utils.common import NodeType
+from utils.common import NodeType, renumerate_faces_and_verts, pickle_dump
 from utils.defaults import DEFAULTS
 from utils.selfcollisions import get_node2face_signed_distance, get_static_proximity, \
     CollisionHelper
@@ -27,7 +27,6 @@ class Config:
     device: str = II('device')
 
     enable_repulsions: bool = II("experiment.enable_repulsions")
-    enable_attractions: bool = II("experiment.enable_attractions")
 
 
 def create(mcfg):
@@ -61,9 +60,7 @@ class Criterion(nn.Module):
         cloth_faces = example['cloth'].faces_batch.T
         vertex_type = example['cloth'].vertex_type
 
-        step = example['cloth'].step[0].item()
-
-        if step == 0:
+        if 'penetrating_mask' not in example['cloth']:
             return torch.FloatTensor([0.]).to(prev_pos.device)
 
         if 'faces_to' not in example['cloth', edge_key, 'cloth']:
@@ -99,6 +96,8 @@ class Criterion(nn.Module):
         dists_normal_curr *= prev_sign
         dists_normal_curr *= sign
 
+        # print(edge_key, dists_normal_curr.shape)
+
 
         interpenetration = torch.maximum(self.penalty_eps - dists_normal_curr, torch.FloatTensor([0]).to(device))
         interpenetration[full_pinned_mask] = interpenetration[full_pinned_mask] * self.pinned_relative_weight
@@ -113,13 +112,14 @@ class Criterion(nn.Module):
         iter_num = sample['cloth'].iter[0].item()
         weight = self.get_weight(iter_num)
 
-        if weight == 0:
+        if weight == 0 or not self.mcfg.enable_repulsions:
             return dict(loss=torch.FloatTensor([0]).to(sample['cloth'].pos.device), weight=weight)
 
         loss_list = []
         for i in range(B):
             repulsion_loss = self.calc_loss(sample.get_example(i), 'repulsion_edge', sign=1)
             loss_list.append(repulsion_loss)
+
 
         loss = sum(loss_list) / B * weight
 
