@@ -25,8 +25,6 @@ def make_slerp(pA: np.ndarray, pB: np.ndarray, n_steps: int, omit_last: bool = T
     if omit_last:
         times = times[:n_steps + 1]
 
-    print('make_slerp::times', times.)
-
     p = np.stack([pA, pB])
     p = R.from_rotvec(p)
     slerp = Slerp([0., 1.], p)
