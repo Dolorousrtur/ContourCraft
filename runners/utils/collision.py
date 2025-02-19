@@ -50,11 +50,12 @@ class CollisionPreprocessor:
             example = sample.get_example(i)
             cloth_pos = example['cloth'].pos.unsqueeze(0)
             obstacle_pos = example['obstacle'].pos.unsqueeze(0)
+            obstacle_prev_pos = example['obstacle'].prev_pos.unsqueeze(0)
             obstacle_faces = example['obstacle'].faces_batch.T.unsqueeze(0)
             cloth_prev_pos = example['cloth'].prev_pos.unsqueeze(0)
 
             pos_shift = self.calc_direction(cloth_pos, obstacle_pos, obstacle_faces)
-            prev_pos_shift = self.calc_direction(cloth_prev_pos, obstacle_pos, obstacle_faces)
+            prev_pos_shift = self.calc_direction(cloth_prev_pos, obstacle_prev_pos, obstacle_faces)
 
             new_pos = cloth_pos - pos_shift
             new_prev_pos = cloth_prev_pos - prev_pos_shift

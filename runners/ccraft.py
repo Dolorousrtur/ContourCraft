@@ -298,7 +298,7 @@ class Runner(nn.Module):
         ts = self.mcfg.regular_ts
 
         if idx > 0:
-            sample_step = self.sample_collector.lookup2target(sample_step, idx - 1)
+            sample_step = self.sample_collector.lookup2target(sample_step, idx)
 
         is_init = False
         if is_short and idx == 0:

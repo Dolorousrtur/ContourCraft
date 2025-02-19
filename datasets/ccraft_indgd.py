@@ -955,6 +955,9 @@ class Dataset:
         else:
             fname, idx, garment_name, gender = self._find_idx(item)
 
+        print('garment_name', garment_name)
+        print('gender', gender)
+
         sample = self.loader.load_sample(fname, idx, garment_name, gender, betas_id=betas_id)
         sample['sequence_name'] = fname
         sample['garment_name'] = garment_name
