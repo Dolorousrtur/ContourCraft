@@ -83,7 +83,6 @@ def create_one_sequence_dataloader(use_config=None, dataset_name=None, dataloade
     create_dataset = dataset_module.create
 
     dataset_config_dict.update(kwargs)
-    print(kwargs)
     config = DatasetConfig(**dataset_config_dict)
 
     dataset = create_dataset(config)
@@ -98,9 +97,6 @@ def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: st
 
     if config is None:
         config = 'contourcraft'
-
-
-
 
     # dataloader = create_one_sequence_dataloader(use_config=config, data_root=data_root, single_sequence_file=file_name,
     #                                             single_sequence_garment=garment_name, garment_dict_file=garment_dict_file,

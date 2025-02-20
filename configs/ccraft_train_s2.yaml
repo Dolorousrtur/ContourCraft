@@ -25,10 +25,10 @@ runner:
     n_random_pin_nobody: 2
     nocollect_after: 2
     no_world_edges_every: 2
-    always_fake_icontour: True
-    use_safecheck: True
+    always_fake_icontour: False
+    use_safecheck: False
     optimizer:
-      lr: 5e-5
+      lr: 2e-3
       decay_steps: 50_000
       decay_rate: 5e-1
     material:
@@ -57,7 +57,7 @@ dataloaders:
         data_root: ''
         body_model_root: 'body_models'
         sequence_loader: 'cmu_npz_smpl'
-        garment_dicts_dir: 'garment_dicts'
+        garment_dicts_dir: 'garment_dicts/smpl'
         obstacle_dict_file: 'smpl_aux.pkl'
         split_path: 'datasplits/train_ccraft.csv'
         pinned_verts: True

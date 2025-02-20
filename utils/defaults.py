@@ -22,8 +22,6 @@ if hostname == 'ohws68.inf.ethz.ch':
 elif hostname == 'ait-server-04.inf.ethz.ch':
     HOOD_PROJECT = "/local/home/agrigorev/Workdir/contourcraft_private"
     HOOD_DATA = "/data/agrigorev/02_Projects/ccraft_data"
-
-
     DEFAULTS['server'] = 'server4'
     DEFAULTS['CMU_root'] = '/data/agrigorev/00_Datasets/AMASS/smpl/CMU'
     DEFAULTS['data_root'] = HOOD_DATA
@@ -33,6 +31,15 @@ elif hostname == 'ait-server-04.inf.ethz.ch':
     DEFAULTS['experiment_root'] = "/data/agrigorev/experiments/"
 
     pass
+elif hostname.startswith('g'):
+    HOOD_PROJECT = "/lustre/home/agrigorev/Workdir/contourcraft_private"
+    HOOD_DATA = '/lustre/fast/fast/agrigorev/02_Projects/ccraft_data'
+    DEFAULTS['server'] = 'mpi'
+    DEFAULTS['CMU_root'] = '/is/cluster/fast/agrigorev/Data/AMASS/smpl/CMU'
+    DEFAULTS['data_root'] = HOOD_DATA
+    DEFAULTS['aux_data'] = os.path.join(HOOD_DATA, 'aux_data')
+    DEFAULTS['project_dir'] = HOOD_PROJECT
+    DEFAULTS['experiment_root'] = "/is/cluster/fast/agrigorev/experiments/"
 else:
     HOOD_PROJECT = os.environ["HOOD_PROJECT"]
     HOOD_DATA = os.environ["HOOD_DATA"]

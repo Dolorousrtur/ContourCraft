@@ -51,7 +51,6 @@ dataloaders:
         data_root: 'vto_dataset/smpl_parameters'
         body_model_root: 'body_models'
         sequence_loader: 'cmu_npz_smplx'
-        gender: 'female'
         garment_dicts_dir: 'garment_dicts'
         obstacle_dict_file: 'smpl_aux.pkl'
         split_path: 'datasplits/train.csv'

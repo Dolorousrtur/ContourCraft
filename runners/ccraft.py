@@ -25,7 +25,6 @@ from runners.utils.material import RandomMaterial
 from utils.cloth_and_material import FaceNormals, ClothMatAug
 from utils.common import move2device, save_checkpoint, add_field_to_pyg_batch, copy_pyg_batch, TorchTimer, NodeType
 from utils.defaults import DEFAULTS
-from loguru import logger
 
 
 @dataclass
@@ -760,7 +759,6 @@ def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, cfg: Di
 
     short_iter = dataloader_short.__iter__()
     long_iter = dataloader_long.__iter__()
-    # assert False
 
     last_step = 'short'
     for i in prbar:
