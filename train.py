@@ -27,11 +27,6 @@ def main():
 
     global_step = config.step_start
 
-    print('config.restart.step_start', config.restart.step_start)
-    print('config.step_start', config.step_start)
-    print('global_step', global_step)
-    assert False
-
     torch.manual_seed(57)
     np.random.seed(57)
     for i in range(config.experiment.n_epochs):
