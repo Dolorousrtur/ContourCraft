@@ -10,6 +10,7 @@ from omegaconf import OmegaConf, DictConfig
 
 from utils.dataloader import DataloaderModule
 from utils.defaults import DEFAULTS
+import torch
 
 
 @dataclass
@@ -33,6 +34,11 @@ class DataConfig:
     batch_size: int = 1                    # batch size (only 1 is supported)
     copy_from: Optional[str] = None        # copy data from another dataloader
 
+@dataclass
+class RestartConfig:
+    checkpoint_path: Optional[str] = None  
+    step_start: Optional[int] = None
+    load_optimizer: bool = True
 
 @dataclass
 class MainConfig:
@@ -41,6 +47,7 @@ class MainConfig:
     device: str = 'cuda:0'                 # device to use
     dataloader: DataConfig = DataConfig()
     experiment: ExperimentConfig = ExperimentConfig()
+    restart: RestartConfig = RestartConfig()
     detect_anomaly: bool = False           # torch.autograd.detect_anomaly
     step_start: int = 0                    # start iteration
 
@@ -50,6 +57,7 @@ def struct_fix(config):
     for k, v in config.items():
         if type(v) == DictConfig:
             struct_fix(v)
+
 
 
 def load_module(module_type: str, module_config: DictConfig, module_name: str = None):
@@ -240,3 +248,21 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
     runner_module, runner, aux_modules = create_runner(modules, config, create_aux_modules=create_aux_modules)
     dataloader_ms = create_dataloader_modules(modules, config)
     return dataloader_ms, runner_module, runner, aux_modules
+
+def load_from_checkpoint(checkpoint_path, runner, aux_modules, cfg):
+
+    sd = torch.load(checkpoint_path)
+    runner.load_state_dict(sd['training_module'])
+
+    if cfg.load_optimizer:
+
+        base_lrs = [group['initial_lr'] for group in aux_modules['optimizer'].param_groups]
+        for k, v in aux_modules.items():
+            if k in sd:
+                print(f'{k} LOADED!')
+                v.load_state_dict(sd[k])
+
+        if 'scheduler' in aux_modules:
+            aux_modules['scheduler'].base_lrs = base_lrs
+
+    return runner, aux_modules

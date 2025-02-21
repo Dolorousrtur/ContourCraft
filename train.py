@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 
-from utils.arguments import load_params, create_modules
+from utils.arguments import load_from_checkpoint, load_params, create_modules
 from utils.writer import WandbWriter
 
 
@@ -14,19 +14,8 @@ def main():
     modules, config = load_params()
     dataloader_ms, runner_module, runner, aux_modules = create_modules(modules, config)
 
-    if config.experiment.checkpoint_path is not None and os.path.exists(config.experiment.checkpoint_path):
-        sd = torch.load(config.experiment.checkpoint_path)
-
-        if 'training_module' in sd:
-            runner.load_state_dict(sd['training_module'])
-
-            for k, v in aux_modules.items():
-                if k in sd:
-                    print(f'{k} LOADED!')
-                    v.load_state_dict(sd[k])
-        else:
-            runner.load_state_dict(sd)
-        print('LOADED:', config.experiment.checkpoint_path)
+    if config.restart.checkpoint_path is not None and os.path.exists(config.restart.checkpoint_path):
+        runner, aux_modules = load_from_checkpoint(config.restart.checkpoint_path, runner, aux_modules, config)
 
     if config.detect_anomaly:
         torch.autograd.set_detect_anomaly(True)
@@ -37,7 +26,7 @@ def main():
     else:
         writer = None
 
-    global_step = config.step_start
+    global_step = config.restart.step_start
 
     torch.manual_seed(57)
     np.random.seed(57)

@@ -9,9 +9,11 @@ experiment:
   enable_attractions: False
   initial_ts: 3.333333333333333e-1
   regular_ts: 3.333333333333333e-2
-  checkpoint_path: "/data/agrigorev/experiments/wandb/run-20250219_193026-ibz41e57/checkpoints/step_0000050000.pth"
+  
 
-step_start: 50000
+restart:
+  checkpoint_path: "/data/agrigorev/experiments/wandb/run-20250219_193026-ibz41e57/checkpoints/step_0000050000.pth"
+  step_start: 50000
 
 runner:
   ccraft:
