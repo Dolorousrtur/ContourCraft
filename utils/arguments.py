@@ -251,6 +251,11 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
 
 def load_from_checkpoint(cfg, runner, aux_modules):
 
+    print('cfg.restart.checkpoint_path', cfg.restart.checkpoint_path)
+    print(os.path.exists(cfg.restart.checkpoint_path))
+    assert False
+
+
     if cfg.restart.checkpoint_path is not None and os.path.exists(cfg.restart.checkpoint_path):
         return runner, aux_modules
 
