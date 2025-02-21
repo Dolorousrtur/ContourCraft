@@ -6,9 +6,10 @@ experiment:
   use_writer: True
   n_steps_only_short: 50000
   enable_repulsions: True
-  enable_attractions: True
+  enable_attractions: False
   initial_ts: 3.333333333333333e-1
   regular_ts: 3.333333333333333e-2
+  
 
 restart:
   checkpoint_path: "/data/agrigorev/experiments/wandb/run-20250219_193026-ibz41e57/checkpoints/step_0000050000.pth"
@@ -28,10 +29,10 @@ runner:
     n_random_pin_nobody: 2
     nocollect_after: 2
     no_world_edges_every: 2
-    always_fake_icontour: False
-    use_safecheck: False
+    always_fake_icontour: True
+    use_safecheck: True
     optimizer:
-      lr: 2e-3
+      lr: 5e-5
       decay_steps: 50_000
       decay_rate: 5e-1
     material:
@@ -81,7 +82,7 @@ dataloaders:
 
 criterions:
   postcvpr.mataug.stretching_energy:
-  postcvpr.mataug.bending_energy:
+  postcvpr.mataug.bending_energy_restangles:
   postcvpr.inertia:
   postcvpr.gravitational_energy:
     z_axis: 1
@@ -94,22 +95,11 @@ criterions:
   ccraft.repulsion_from_wews_sepat: #-
     weight_start: 0.
     weight_max: 2e+6
-    step_start: 0
-    step_max: 100
+    step_start: 30000
+    step_max: 40000
     correspondence_eps: 1e-2
     penalty_eps: 3e-3
     pinned_relative_weight: 1e2
-  ccraft.icontour_nanfix: #-
-    weight_start: 0.
-    weight_max: 1e+7
-    step_start: 45000
-    step_max: 50000
-    detach_coords: True
-    detach_coeffs: False
-    detach_aux_bary: False
-    detach_aux_edges: False
-    only_edgeloss: True
-
 
 model:
   ccraft:
@@ -118,5 +108,7 @@ model:
     collision_radius: 3e-2
     body_collision_radius: 3e-2
     n_coarse_levels: 4
+    allrep: True
+
 
 device: 'cuda:0'
