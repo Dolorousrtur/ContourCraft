@@ -37,7 +37,7 @@ class DataConfig:
 @dataclass
 class RestartConfig:
     checkpoint_path: Optional[str] = None  
-    step_start: int = 0
+    step_start: Optional[int] = None  
     load_optimizer: bool = True
 
 @dataclass
@@ -49,6 +49,7 @@ class MainConfig:
     experiment: ExperimentConfig = ExperimentConfig()
     restart: RestartConfig = RestartConfig()
     detect_anomaly: bool = False           # torch.autograd.detect_anomaly
+    step_start: int = 0                    
 
 
 def struct_fix(config):
@@ -250,13 +251,16 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
 
 def load_from_checkpoint(cfg, runner, aux_modules):
 
-    if cfg.checkpoint_path is not None and os.path.exists(cfg.checkpoint_path):
+    if cfg.restart.checkpoint_path is not None and os.path.exists(cfg.restart.checkpoint_path):
         return runner, aux_modules
 
-    sd = torch.load(cfg.checkpoint_path)
+    sd = torch.load(cfg.restart.checkpoint_path)
     runner.load_state_dict(sd['training_module'])
 
-    if cfg.load_optimizer:
+    if cfg.restart.step_start is not None:
+        cfg.step_start = cfg.restart.step_start
+
+    if cfg.restart.load_optimizer:
 
         base_lrs = [group['initial_lr'] for group in aux_modules['optimizer'].param_groups]
         for k, v in aux_modules.items():
