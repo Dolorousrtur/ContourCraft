@@ -1,14 +1,14 @@
 experiment:
   name: debug
   save_checkpoint_every: 1000
-  save_checkpoint_every_wlong: 50
+  save_checkpoint_every_wlong: 10
   n_epochs: 20000000
   use_writer: True
   n_steps_only_short: 50000
   enable_attractions: False
   initial_ts: 3.333333333333333e-1
   regular_ts: 3.333333333333333e-2
-  max_iter: 50050
+  max_iter: 50010
 
 restart:
   checkpoint_path: "trained_models/temp/regular_50K.pth"
