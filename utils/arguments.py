@@ -251,13 +251,18 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
 
 def load_from_checkpoint(cfg, runner, aux_modules):
 
+    if cfg.restart.checkpoint_path is None:
+        return runner, aux_modules
+    
+    checkpoint_path = Path(DEFAULTS.data_root) / cfg.restart.checkpoint_path
 
-
-    if cfg.restart.checkpoint_path is None or not os.path.exists(cfg.restart.checkpoint_path):
+    if not os.path.exists(checkpoint_path):
         return runner, aux_modules
 
-    sd = torch.load(cfg.restart.checkpoint_path)
+    sd = torch.load(checkpoint_path)
     runner.load_state_dict(sd['training_module'])
+
+    print(f'LOADED CHECKPOINT FROM {checkpoint_path}')
 
     if cfg.restart.step_start is not None:
         cfg.step_start = cfg.restart.step_start
