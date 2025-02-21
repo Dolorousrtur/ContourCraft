@@ -57,7 +57,8 @@ class Criterion(nn.Module):
         cloth_faces = example['cloth'].faces_batch.T
         vertex_type = example['cloth'].vertex_type
 
-        if 'penetrating_mask' not in example['cloth']:
+        step = example['cloth'].step[0].item()
+        if step == 0:
             return torch.FloatTensor([0.]).to(prev_pos.device)
 
         if 'faces_to' not in example['cloth', edge_key, 'cloth']:

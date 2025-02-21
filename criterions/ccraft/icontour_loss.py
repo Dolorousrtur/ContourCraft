@@ -63,7 +63,8 @@ class Criterion(nn.Module):
         if n_attraction_edges == 0:
             return dict(loss=torch.FloatTensor([0]).to(device), weight=weight)
         
-        if 'penetrating_mask' not in sample['cloth']:
+        step = sample['cloth'].step[0].item()
+        if step == 0:
             return dict(loss=torch.FloatTensor([0]).to(device), weight=weight)
 
         verts = sample['cloth'].pred_pos
