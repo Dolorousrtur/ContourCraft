@@ -12,7 +12,7 @@ experiment:
   
 
 restart:
-  checkpoint_path: "/data/agrigorev/experiments/wandb/run-20250219_193026-ibz41e57/checkpoints/step_0000050000.pth"
+  checkpoint_path: "trained_models/temp/restangles_50K.pth"
   step_start: 50000
 
 runner:

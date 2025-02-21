@@ -11,10 +11,6 @@ experiment:
   max_iter: 56000
 
 
-restart:
-  checkpoint_path: "trained_models/temp/regular_50K.pth"
-  step_start: 50000
-
 runner:
   ccraft:
     warmup_steps: 100
