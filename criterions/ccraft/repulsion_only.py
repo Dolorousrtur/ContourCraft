@@ -26,9 +26,6 @@ class Config:
     detach_faces: bool = False
     device: str = II('device')
 
-    enable_repulsions: bool = II("experiment.enable_repulsions")
-
-
 def create(mcfg):
     return Criterion(mcfg)
 
@@ -112,7 +109,7 @@ class Criterion(nn.Module):
         iter_num = sample['cloth'].iter[0].item()
         weight = self.get_weight(iter_num)
 
-        if weight == 0 or not self.mcfg.enable_repulsions:
+        if weight == 0:
             return dict(loss=torch.FloatTensor([0]).to(sample['cloth'].pos.device), weight=weight)
 
         loss_list = []

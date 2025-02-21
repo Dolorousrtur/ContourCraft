@@ -26,7 +26,6 @@ class Config:
     detach_faces: bool = False
     device: str = II('device')
 
-    enable_repulsions: bool = II("experiment.enable_repulsions")
     enable_attractions: bool = II("experiment.enable_attractions")
 
 

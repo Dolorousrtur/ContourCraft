@@ -5,10 +5,10 @@ experiment:
   n_epochs: 20000000
   use_writer: True
   n_steps_only_short: 50000
-  enable_repulsions: True
   enable_attractions: False
   initial_ts: 3.333333333333333e-1
   regular_ts: 3.333333333333333e-2
+  max_iter: 56000
   
 
 restart:
@@ -18,15 +18,10 @@ restart:
 runner:
   ccraft:
     warmup_steps: 100
-    n_opt_steps: 1
     increase_roll_every: 5000
     roll_max: 20
     push_eps: 2e-3
-    use_restpos_for_strain_tensor: True
-    opposite_edges: False
     grad_clip: 1.
-    random_pin_nobody: False
-    n_random_pin_nobody: 2
     nocollect_after: 2
     no_world_edges_every: 2
     always_fake_icontour: True
@@ -55,9 +50,8 @@ dataloaders:
   short:
     num_workers: 0
     batch_size: 1
-    pyg_data: True
     dataset:
-      ccraft_indgd:
+      ccraft:
         data_root: ''
         body_model_root: 'body_models'
         sequence_loader: 'cmu_npz_smpl'
@@ -76,7 +70,7 @@ dataloaders:
   long:
     copy_from: short
     dataset:
-      ccraft_indgd:
+      ccraft:
         wholeseq: True
         noise_scale: 0.
 
@@ -86,13 +80,13 @@ criterions:
   postcvpr.inertia:
   postcvpr.gravitational_energy:
     z_axis: 1
-  ccraft.collision_penalty_wramp: #-
+  ccraft.collision_penalty: #-
     weight_start: 5e+3
     weight_max: 1e+6
     eps: 3e-3
     start_rampup_iteration: 30000
     n_rampup_iterations: 10000
-  ccraft.repulsion_from_wews_sepat: #-
+  ccraft.repulsion_loss: #-
     weight_start: 0.
     weight_max: 2e+6
     step_start: 30000

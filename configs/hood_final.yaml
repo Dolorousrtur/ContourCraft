@@ -23,7 +23,6 @@ runner:
 dataloader:
   num_workers: 0
   batch_size: 1
-  pyg_data: True
   dataset:
     postcvpr:
       data_root: 'vto_dataset/smpl_parameters'

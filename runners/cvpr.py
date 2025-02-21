@@ -57,7 +57,6 @@ class Config:
     optimizer: OptimConfig = OptimConfig()
     material: MaterialConfig = MaterialConfig()
     warmup_steps: int = 100
-    n_opt_steps: int = 1
     increase_roll_every: int = -1
     roll_max: int = 1
     push_eps: float = 0.
@@ -438,10 +437,10 @@ def run_epoch(training_module: Runner, aux_modules: dict, dataloader: DataLoader
         B = sample.num_graphs
         sample = add_field_to_pyg_batch(sample, 'iter', [global_step] * B, 'cloth', reference_key=None)
 
-        if training_module.mcfg.increase_roll_every < 0:
-            roll_steps = training_module.mcfg.n_opt_steps
+        if training_module.mcfg.increase_roll_every <= 0:
+            roll_steps = 1
         else:
-            roll_steps = training_module.mcfg.n_opt_steps + (global_step // training_module.mcfg.increase_roll_every)
+            roll_steps = 1 + (global_step // training_module.mcfg.increase_roll_every)
             roll_steps = min(roll_steps, training_module.mcfg.roll_max)
 
         if global_step >= training_module.mcfg.warmup_steps:

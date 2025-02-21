@@ -6,14 +6,11 @@ experiment:
 runner:
   cvpr:
     warmup_steps: 100
-    n_opt_steps: 1
     increase_roll_every: 5000
     roll_max: 5
     push_eps: 2e-3
     initial_ts: 3.333333333333333e-1
     regular_ts: 3.333333333333333e-2
-    use_restpos_for_strain_tensor: True
-    opposite_edges: False
     grad_clip: 1.
     optimizer:
       lr: 5e-5
@@ -32,7 +29,6 @@ runner:
 dataloader:
   num_workers: 8
   batch_size: 1
-  pyg_data: True
   dataset:
     cvpr:
       data_root: 'vto_dataset/smpl_parameters'

@@ -82,20 +82,12 @@ class Config:
     push_eps: float = 2e-3
     grad_clip: Optional[float] = 1.
     overwrite_pos_every_step: bool = False
-    nobody_freq: float = .5
     nocollect_after: int = 1
-    random_pin_nobody: bool = False
-    n_random_pin_nobody: int = 2
-    nopin_freq: float = 0.
-    short_is_training: bool = True
     no_world_edges_every: int = -1
     always_fake_icontour: bool = False
-    cutout_with_attractions: bool = False
     use_safecheck: bool = False
 
-    enable_repulsions: bool = True
     enable_attractions: bool = True
-    enable_attractions_from: Optional[int] = II("experiment.enable_attractions_from")
 
     initial_ts: float = II("experiment.initial_ts")
     regular_ts: float = II("experiment.regular_ts")
@@ -726,22 +718,6 @@ def make_checkpoint(runner, aux_modules, cfg, global_step):
         save_checkpoint(runner, aux_modules, cfg, checkpoint_path)
 
 
-def make_random_pin_nobody(sample, mcfg):
-    if 'obstacle' in sample.node_types:
-        return sample
-    if not mcfg.random_pin_nobody:
-        return sample
-
-    vertex_type = sample['cloth'].vertex_type
-    N = vertex_type.shape[0]
-    vertex_type = vertex_type * 0
-
-    pinned_ids = np.random.choice(N, size=mcfg.n_random_pin_nobody, replace=False)
-    vertex_type[pinned_ids] = NodeType.HANDLE
-    sample['cloth'].vertex_type = vertex_type
-    return sample
-
-
 def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, cfg: DictConfig, writer=None, global_step=None):
     global_step = global_step or 0
 
@@ -776,8 +752,6 @@ def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, cfg: Di
 
         last_step = curr_step
         sample = move2device(sample, cfg.device)
-
-        sample = make_random_pin_nobody(sample, runner.mcfg)
 
         B = sample.num_graphs
         sample = add_field_to_pyg_batch(sample, 'iter', [global_step] * B, 'cloth', reference_key=None)

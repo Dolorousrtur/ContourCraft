@@ -17,7 +17,6 @@ runner:
 dataloader:
   num_workers: 0
   batch_size: 1
-  pyg_data: True
   dataset:
     from_any_pose:
       smpl_model: 'body_models/smpl/SMPL_FEMALE.pkl'

@@ -16,16 +16,15 @@ import torch
 @dataclass
 class ExperimentConfig:
     name: Optional[str] = None              # name for the experiment
-    save_checkpoint_every: int = 100000     # save checkpoint every n iterations
+    save_checkpoint_every: int = 1000     # save checkpoint every n iterations
+    save_checkpoint_every_wlong: int = 200     
+    n_steps_only_short: int = 50000
     n_epochs: int = 200                     # number of epochs
-    checkpoint_path: Optional[str] = None   # path to checkpoint to load
     max_iter: Optional[int] = None          # max number of iterations
     initial_ts: float = 1/3
     regular_ts: float = 1/30
     
-    enable_repulsions: bool = False
     enable_attractions: bool = False
-    enable_attractions_from: Optional[int] = None
     
 
 @dataclass

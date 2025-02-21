@@ -451,9 +451,6 @@ class TrainingModule(nn.Module):
     def prepare_sample(self, sample):
         sample = self._add_cloth_obj(sample)
         sample = self.safecheck_solver.mark_penetrating_faces(sample, dummy=True)
-
-        if random.random() < self.mcfg.nopin_freq:
-            sample['cloth'].vertex_type *= 0
         return sample
 
     def update_sample_1st_step(self, sample_step, sample):

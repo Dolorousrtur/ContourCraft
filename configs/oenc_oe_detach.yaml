@@ -6,7 +6,6 @@ experiment:
   n_epochs: 20000000
   use_writer: True
   n_steps_only_short: 50000
-  enable_repulsions: True
   enable_attractions: True
 
 collisions:
@@ -22,17 +21,12 @@ restart:
 runner:
   manualgrad:
     warmup_steps: 100
-    n_opt_steps: 1
     increase_roll_every: 5000
     roll_max: 20
     push_eps: 2e-3
     initial_ts: 3.333333333333333e-1
     regular_ts: 3.333333333333333e-2
-    use_restpos_for_strain_tensor: True
-    opposite_edges: False
     grad_clip: 1.
-    random_pin_nobody: False
-    n_random_pin_nobody: 2
     nocollect_after: 2
     no_world_edges_every: 2
     fake_icontour: False
@@ -59,7 +53,6 @@ runner:
 dataloader_short:
   num_workers: 4
   batch_size: 1
-  pyg_data: True
   dataset:
     multigarment_nlu:
       path: 'tshirt/smpl_parameters'
@@ -89,7 +82,7 @@ criterions_hood:
   cut.gravitational_energy: #-
     z_axis: 1
   cut.mataug.bending_energy: #-
-  warp_c.collision_penalty_wramp: #-
+  warp_c.collision_penalty: #-
     weight_start: 5e+3
     weight_max: 1e+6
     eps: 3e-3
@@ -103,7 +96,7 @@ criterions_hood:
     correspondence_eps: 1e-2
     penalty_eps: 3e-3
     pinned_relative_weight: 1e2
-  warp_c.icontour_nanfix: #-
+  warp_c.icontour_loss: #-
     weight_start: 0.
     weight_max: 1e+7
     step_start: 45000

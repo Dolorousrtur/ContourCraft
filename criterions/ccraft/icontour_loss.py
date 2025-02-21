@@ -24,9 +24,7 @@ class Config:
     only_edgeloss: bool = False
     device: str = II('device')
 
-    enable_repulsions: bool = II("experiment.enable_repulsions")
     enable_attractions: bool = II("experiment.enable_attractions")
-    enable_attractions_from: Optional[int] = II("experiment.enable_attractions_from")
 
 
 def create(mcfg):
@@ -57,10 +55,7 @@ class Criterion(nn.Module):
 
         n_attraction_edges = sample['cloth', 'attraction_edge', 'cloth'].edge_index.shape[1]
 
-        if self.mcfg.enable_attractions_from is not None:
-            enable_attractions = iter_num >= self.mcfg.enable_attractions_from
-        else:
-            enable_attractions = self.mcfg.enable_attractions
+        enable_attractions = self.mcfg.enable_attractions
 
         if weight == 0 or not enable_attractions:
             return dict(loss=torch.FloatTensor([0]).to(device), weight=weight)
