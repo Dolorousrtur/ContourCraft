@@ -14,7 +14,7 @@ def main():
     modules, config = load_params()
     dataloader_ms, runner_module, runner, aux_modules = create_modules(modules, config)
 
-    runner, aux_modules = load_from_checkpoint(config.restart, runner, aux_modules)
+    runner, aux_modules = load_from_checkpoint(config, runner, aux_modules)
 
     if config.detect_anomaly:
         torch.autograd.set_detect_anomaly(True)
