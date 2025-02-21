@@ -187,9 +187,8 @@ class CollisionSolver:
         vertex_type = state['cloth'].vertex_type.squeeze()
         pinned_mask = vertex_type == 3
 
-        if IMPULSE_MASS:
-            if self.mcfg.pinned_mass > 0:
-                mass[pinned_mask] = self.mcfg.pinned_mass
+        if self.mcfg.pinned_mass > 0:
+            mass[pinned_mask] = self.mcfg.pinned_mass
 
         unpinned_mask = torch.logical_not(pinned_mask)
         unpinned_mask = unpinned_mask[:, None]
@@ -418,10 +417,6 @@ def update_verts(vertex_dx_sum, vertex_dv_sum, verts1, faces, imp_counter, imp_d
 
     vertex_dx = vertex_dx * w
     vertex_dv = vertex_dv * w
-
-    if unpinned_mask is not None and IMPULSE_RESET_PINNED_LOOP:
-        vertex_dx = vertex_dx * unpinned_mask
-        vertex_dv = vertex_dv * unpinned_mask
 
     vertex_dx_sum = vertex_dx_sum + vertex_dx
     vertex_dv_sum = vertex_dv_sum + vertex_dv
