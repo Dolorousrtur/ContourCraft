@@ -251,12 +251,9 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
 
 def load_from_checkpoint(cfg, runner, aux_modules):
 
-    print('cfg.restart.checkpoint_path', cfg.restart.checkpoint_path)
-    print(os.path.exists(cfg.restart.checkpoint_path))
-    assert False
 
 
-    if cfg.restart.checkpoint_path is not None and os.path.exists(cfg.restart.checkpoint_path):
+    if cfg.restart.checkpoint_path is None or not os.path.exists(cfg.restart.checkpoint_path):
         return runner, aux_modules
 
     sd = torch.load(cfg.restart.checkpoint_path)
@@ -275,5 +272,7 @@ def load_from_checkpoint(cfg, runner, aux_modules):
 
         if 'scheduler' in aux_modules:
             aux_modules['scheduler'].base_lrs = base_lrs
+
+    assert False
 
     return runner, aux_modules
