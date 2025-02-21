@@ -273,6 +273,4 @@ def load_from_checkpoint(cfg, runner, aux_modules):
         if 'scheduler' in aux_modules:
             aux_modules['scheduler'].base_lrs = base_lrs
 
-    assert False
-
     return runner, aux_modules
