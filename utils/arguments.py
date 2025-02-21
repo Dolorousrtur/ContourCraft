@@ -37,7 +37,7 @@ class DataConfig:
 @dataclass
 class RestartConfig:
     checkpoint_path: Optional[str] = None  
-    step_start: Optional[int] = None
+    step_start: int = 0
     load_optimizer: bool = True
 
 @dataclass
@@ -49,7 +49,6 @@ class MainConfig:
     experiment: ExperimentConfig = ExperimentConfig()
     restart: RestartConfig = RestartConfig()
     detect_anomaly: bool = False           # torch.autograd.detect_anomaly
-    step_start: int = 0                    # start iteration
 
 
 def struct_fix(config):
