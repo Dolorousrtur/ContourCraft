@@ -249,7 +249,7 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
     dataloader_ms = create_dataloader_modules(modules, config)
     return dataloader_ms, runner_module, runner, aux_modules
 
-def load_from_checkpoint(cfg, runner, aux_modules, cfg):
+def load_from_checkpoint(cfg, runner, aux_modules):
 
     if cfg.checkpoint_path is not None and os.path.exists(cfg.checkpoint_path):
         return runner, aux_modules
