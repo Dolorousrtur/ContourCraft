@@ -10,6 +10,12 @@ experiment:
   initial_ts: 3.333333333333333e-1
   regular_ts: 3.333333333333333e-2
 
+restart:
+  experiment_id: ibz41e57
+  step: 50000
+  server: current
+  step_start: 50000
+
 
 runner:
   ccraft:
