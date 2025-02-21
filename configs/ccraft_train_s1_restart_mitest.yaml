@@ -10,6 +10,9 @@ experiment:
   regular_ts: 3.333333333333333e-2
   max_iter: 50050
 
+restart:
+  checkpoint_path: "trained_models/temp/ragular_50K.pth"
+  step_start: 45000
 
 runner:
   ccraft:

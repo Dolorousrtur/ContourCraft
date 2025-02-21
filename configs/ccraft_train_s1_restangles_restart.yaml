@@ -13,7 +13,7 @@ experiment:
 
 restart:
   checkpoint_path: "trained_models/temp/restangles_50K.pth"
-  step_start: 50000
+  step_start: 45000
 
 runner:
   ccraft:
