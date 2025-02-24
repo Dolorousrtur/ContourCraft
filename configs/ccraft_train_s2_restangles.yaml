@@ -76,7 +76,7 @@ dataloaders:
 
 criterions:
   postcvpr.mataug.stretching_energy:
-  postcvpr.mataug.bending_energy:
+  postcvpr.mataug.bending_energy_restangles:
   postcvpr.inertia:
   postcvpr.gravitational_energy:
     z_axis: 1
