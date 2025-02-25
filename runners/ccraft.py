@@ -756,6 +756,9 @@ def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, cfg: Di
         B = sample.num_graphs
         sample = add_field_to_pyg_batch(sample, 'iter', [global_step] * B, 'cloth', reference_key=None)
 
+        print('curr_step', curr_step)
+        continue
+
         if curr_step == 'short':
             ld_to_write = step_short(runner, global_step, sample, optimizer, scheduler)
         elif curr_step == 'long':
