@@ -11,7 +11,7 @@ experiment:
   max_iter: 56000
 
 restart:
-  checkpoint_path: "trained_models/regular_56K.pth"
+  checkpoint_path: "trained_models/temp/regular_56K.pth"
   step_start: 45000
   
 
