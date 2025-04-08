@@ -667,7 +667,7 @@ class GarmentBuilder:
 
         if garment_name not in self.garment_smpl_model_dict:
             garment_dict = self.garments_dict[garment_name]
-            gender = garment_dict['gender']
+            gender = garment_dict.get('gender', self.mcfg.gender)
             body_model = self.body_models_dict[gender]
             garment_smpl_model = GarmentSMPL(body_model, garment_dict['lbs'])
             self.garment_smpl_model_dict[garment_name] = garment_smpl_model
