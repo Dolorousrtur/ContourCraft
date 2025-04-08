@@ -240,18 +240,6 @@ class CollisionSolver:
 
                 break
 
-            if imp_dv.sum() != imp_dv.sum():
-                out_dict = {}
-                out_dict['verts0'] = verts0
-                out_dict['verts1_curr'] = verts1_curr
-                out_dict['faces'] = faces
-                out_dict['mass'] = mass
-
-                out_path = os.path.join(DEFAULTS.run_dir, 'debug', 'impulse_nan.pkl')
-                os.makedirs(os.path.dirname(out_path), exist_ok=True)
-                print('IMPULSE NAN SAVED IN ', out_path)
-                pickle_dump(out_dict, out_path)
-
             if imp_counter.sum() == 0:
                 break
 

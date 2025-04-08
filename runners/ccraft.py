@@ -1,5 +1,6 @@
 # wbody2 == mimp_cut_wbody_omw_ombp
 import os
+from pathlib import Path
 import random
 import time
 from collections import defaultdict
@@ -705,16 +706,18 @@ def make_checkpoint(runner, aux_modules, cfg, global_step):
 
     if to_save:
 
-        if hasattr(cfg, 'run_dir'):
-            checkpoints_dir = os.path.join(cfg.run_dir, 'checkpoints')
+        if hasattr(cfg, 'checkpoints_dir') and cfg.checkpoints_dir is not None:
+            checkpoints_dir = Path(DEFAULTS.data_root) / cfg.checkpoints_dir
         else:
             now = datetime.now()
             dt_string = now.strftime("%Y%m%d_%H%M%S")
-            cfg.run_dir = os.path.join(DEFAULTS.experiment_root, dt_string)
-            checkpoints_dir = os.path.join(cfg.run_dir, 'checkpoints')
+            run_dir = os.path.join(DEFAULTS.experiment_root, dt_string)
+            checkpoints_dir = os.path.join(run_dir, 'checkpoints')
+            cfg.checkpoints_dir = checkpoints_dir
 
         os.makedirs(checkpoints_dir, exist_ok=True)
         checkpoint_path = os.path.join(checkpoints_dir, f"step_{global_step:010d}.pth")
+        print('checkpoint_path', checkpoint_path)
         save_checkpoint(runner, aux_modules, cfg, checkpoint_path)
 
 

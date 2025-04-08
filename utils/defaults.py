@@ -27,9 +27,7 @@ elif hostname == 'ait-server-04.inf.ethz.ch':
     DEFAULTS['data_root'] = HOOD_DATA
     DEFAULTS['aux_data'] = os.path.join(HOOD_DATA, 'aux_data')
     DEFAULTS['project_dir'] = HOOD_PROJECT
-
     DEFAULTS['experiment_root'] = "/data/agrigorev/experiments/"
-
     pass
 elif hostname.startswith('g'):
     HOOD_PROJECT = "/lustre/home/agrigorev/Workdir/contourcraft_private"
