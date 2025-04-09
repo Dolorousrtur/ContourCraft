@@ -86,70 +86,6 @@ def create(mcfg: Config):
     return dataset
 
 
-# class VertexBuilder:
-#     """
-#     Helper class to build garment and body vertices from a sequence of SMPL poses.
-#     """
-
-#     def __init__(self, mcfg):
-#         self.mcfg = mcfg
-
-#     @staticmethod
-#     def build(sequence_dict: dict, f_make, idx_start: int, idx_end: int = None, garment_name: str = None) -> np.ndarray:
-#         """
-#         Build vertices from a sequence of SMPL poses using the given `f_make` function.
-#         :param sequence_dict: a dictionary of SMPL parameters
-#         :param f_make: a function that takes SMPL parameters and returns vertices
-#         :param idx_start: first frame index
-#         :param idx_end: last frame index
-#         :param garment_name: name of the garment (None for body)
-#         :return: [Nx3] mesh vertices
-#         """
-#         for k in ['body_pose', 'global_orient', 'transl']:
-#             sequence_dict[k] = sequence_dict[k][idx_start: idx_end]
-
-#         N = sequence_dict['body_pose'].shape[0]
-#         sequence_dict['betas'] = np.tile(sequence_dict['betas'], (N, 1))
-
-#         verts = f_make(sequence_dict, garment_name=garment_name)
-
-#         return verts
-
-#     def pos2tensor(self, pos: np.ndarray) -> torch.Tensor:
-#         """
-#         Convert a numpy array of vertices to a tensor and permute the axes into [VxNx3] (torch geometric format)
-#         """
-#         pos = torch.tensor(pos).permute(1, 0, 2)
-#         return pos
-
-#     def add_verts(self, sample: HeteroData, sequence_dict: dict, f_make, object_key: str,
-#                   **kwargs) -> HeteroData:
-#         """
-#         Builds the vertices from the given SMPL pose sequence and adds them to the HeteroData sample.
-#         :param sample: HetereoData object
-#         :param sequence_dict: sequence of SMPL parameters
-#         :param f_make: function that takes SMPL parameters and returns vertices
-#         :param object_key: name of the object to build vertices for ('cloth' or 'obstacle')
-#         :return: updated HeteroData object
-#         """
-
-#         pos_dict = {}
-
-#         # Build the vertices for the whole sequence
-#         all_vertices = VertexBuilder.build(sequence_dict, f_make, 0, None,
-#                                            **kwargs)
-#         pos_dict['prev_pos'] = all_vertices
-#         pos_dict['pos'] = all_vertices
-#         pos_dict['target_pos'] = all_vertices
-
-
-#         for k, v in pos_dict.items():
-#             v = self.pos2tensor(v)
-#             setattr(sample[object_key], k, v)
-
-#         return sample
-
-
 
 class GarmentBuilder:
     """
@@ -165,11 +101,11 @@ class GarmentBuilder:
         self.garment_dict = garment_dict
         self.vertex_builder = VertexBuilder(mcfg)
 
-        self.gc = GarmentCreator(None, None, None, None, collect_lbs=False, coarse=True, verbose=False)    
+        self.gc = GarmentCreator(None, None, None, collect_lbs=False, coarse=True, verbose=False)    
 
     def add_verts(self, sample: HeteroData, garment_dict: dict) -> HeteroData:
 
-        n_frames = sample['obstacle'].pos.shape[1]
+        n_frames = sample['obstacle'].lookup.shape[1] + 2
 
         if 'vertices' in garment_dict:
             pos = garment_dict['vertices']
@@ -179,11 +115,11 @@ class GarmentBuilder:
         pos = torch.FloatTensor(pos)[None,].permute(1, 0, 2)
         pos = pos.repeat(1, n_frames, 1)
 
-        sample['cloth'].prev_pos = pos
-        sample['cloth'].pos = pos
-        sample['cloth'].target_pos = pos
+        sample['cloth'].prev_pos = pos[:, 0]
+        sample['cloth'].pos = pos[:, 1]
+        sample['cloth'].target_pos = pos[:, 2]
+        sample['cloth'].lookup = pos[:, 2:]
         sample['cloth'].rest_pos = pos[:, 0]
-        
 
         return sample
 
@@ -209,8 +145,6 @@ class GarmentBuilder:
         else:
             V = sample['cloth'].pos.shape[0]
             vertex_type = np.zeros((V, 1)).astype(np.int64)
-
-        print(np.unique(vertex_type))
 
         sample['cloth'].vertex_type = torch.tensor(vertex_type)
         return sample
@@ -361,11 +295,6 @@ class GarmentBuilder:
 
         distances_to_planes_filtered[exclude_nodes_mask] = distances_to_centers[exclude_nodes_mask]
 
-        # distances_to_planes_filtered = distances_to_centers
-
-        # print('distances_to_centers', distances_to_centers.shape)
-        # print('all_noinside_mask', all_noinside_mask)
-        
         # Find the closest face for each point
         closestface_id = torch.argmin(distances_to_planes_filtered, dim=1)  # (N,)
 
@@ -422,8 +351,6 @@ class GarmentBuilder:
         v = barycoords[:, 1].unsqueeze(0)  # (1, N)
         w = barycoords[:, 2].unsqueeze(0)  # (1, N)
 
-        print('u', u.shape)
-        
         # Gather the vertices for the closest faces for all frames
         v0_indices = obstacle_faces[closestface_id, 0]  # (N,)
         v1_indices = obstacle_faces[closestface_id, 1]  # (N,)
@@ -432,7 +359,6 @@ class GarmentBuilder:
         v0 = obstacle_pos_sequence[:, v0_indices]  # (K, N, 3)
         v1 = obstacle_pos_sequence[:, v1_indices]  # (K, N, 3)
         v2 = obstacle_pos_sequence[:, v2_indices]  # (K, N, 3)
-        print('v0', v0.shape)
         
         # Compute the weighted sum of the vertices using the barycentric coordinates
         pinned_pos_bary = u.unsqueeze(2) * v0 + v.unsqueeze(2) * v1 + w.unsqueeze(2) * v2  # (K, N, 3)
@@ -456,6 +382,7 @@ class GarmentBuilder:
         
     def update_pinned_target(self, sample: HeteroData) -> HeteroData:
         cloth_target_pos = sample['cloth'].target_pos
+        cloth_lookup = sample['cloth'].lookup
 
 
         cloth_vertex_type = sample['cloth'].vertex_type
@@ -466,12 +393,11 @@ class GarmentBuilder:
         
         pinned_mask = pinned_mask[:, 0]
 
-        obstacle_target_pos = sample['obstacle'].target_pos
         
 
 
-        cloth_first_frame_pos = sample['cloth'].pos[:, 0]
-        obstacle_first_frame_pos = sample['obstacle'].pos[:, 0]
+        cloth_first_frame_pos = sample['cloth'].pos
+        obstacle_first_frame_pos = sample['obstacle'].pos
 
         obstacle_faces = sample['obstacle'].faces_batch.T
 
@@ -484,14 +410,21 @@ class GarmentBuilder:
                                                                   closest_face_ids)
         
 
-        pinned_target_pos = self.compute_pinned_target_pos(obstacle_target_pos,
+        obstacle_target_pos = sample['obstacle'].target_pos
+        obstacle_lookup = sample['obstacle'].lookup
+        obstacle_target_plus_lookup = torch.cat([obstacle_target_pos[:, None], obstacle_lookup], dim=1)
+
+        pinned_target_plus_lookup = self.compute_pinned_target_pos(obstacle_target_plus_lookup,
                                                               obstacle_faces,
                                                                 closest_face_ids,
                                                                 barycoords,
                                                                 ndists)
         
-
+        pinned_target_pos = pinned_target_plus_lookup[:, 0]
+        pinned_lookup = pinned_target_plus_lookup[:, 1:]
+        
         cloth_target_pos[pinned_mask] = pinned_target_pos
+        cloth_lookup[pinned_mask] = pinned_lookup
 
         sample['cloth'].target_pos = cloth_target_pos
         return sample
@@ -658,9 +591,11 @@ class BareMeshBodyBuilder:
 
         pos = torch.FloatTensor(sequence_dict["verts"]).permute(1, 0, 2)
 
-        sample['obstacle'].prev_pos = pos
-        sample['obstacle'].pos = pos
-        sample['obstacle'].target_pos = pos
+        sample['obstacle'].prev_pos = pos[:, 0]
+        sample['obstacle'].pos = pos[:, 1]
+        sample['obstacle'].target_pos = pos[:, 2]
+        sample['obstacle'].lookup = pos[:, 2:]
+
         return sample
 
     def add_vertex_level(self, sample: HeteroData) -> HeteroData:

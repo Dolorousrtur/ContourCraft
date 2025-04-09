@@ -34,10 +34,10 @@ elif hostname.startswith('g'):
     HOOD_DATA = '/lustre/fast/fast/agrigorev/02_Projects/ccraft_data'
     DEFAULTS['server'] = 'mpi'
     DEFAULTS['CMU_root'] = '/is/cluster/fast/agrigorev/Data/AMASS/smpl/CMU'
-    DEFAULTS['data_root'] = HOOD_DATA
-    DEFAULTS['aux_data'] = os.path.join(HOOD_DATA, 'aux_data')
-    DEFAULTS['project_dir'] = HOOD_PROJECT
-    DEFAULTS['experiment_root'] = "/is/cluster/fast/agrigorev/experiments/"
+    DEFAULTS['data_root'] = '/lustre/fast/fast/agrigorev/02_Projects/ccraft_data'
+    DEFAULTS['aux_data'] = os.path.join(DEFAULTS['data_root'], 'aux_data')
+    DEFAULTS['project_dir'] = "/lustre/home/agrigorev/Workdir/contourcraft_private"
+    DEFAULTS['experiment_root'] = os.path.join(DEFAULTS['data_root'], 'experiments')
 else:
     HOOD_PROJECT = os.environ["HOOD_PROJECT"]
     HOOD_DATA = os.environ["HOOD_DATA"]

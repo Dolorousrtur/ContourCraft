@@ -109,24 +109,28 @@ pip install .
 
 ## Download data
 
-### HOOD data
-Download the auxiliary data for HOOD using this [link](https://drive.google.com/file/d/1RdA4L6Fy50VsKZ8k7ySp5ps5YtWoHSgs/view?usp=sharing).
-Unpack it anywhere you want and set the `HOOD_DATA` environmental variable to the path of the unpacked folder.
-Also, set the `HOOD_PROJECT` environmental variable to the path you cloned this repository to:
-
-```bash
-export HOOD_DATA=/path/to/hood_data
-export HOOD_PROJECT=/path/to/this/repository
+### ContourCraft data
+Download the auxiliary data for ContourCraft using this [link](https://drive.google.com/file/d/1RdA4L6Fy50VsKZ8k7ySp5ps5YtWoHSgs/view?usp=sharing).
+Unpack it anywhere you want and set the `DEFAULTS.data_root` variable in `defaults.py` to the path of the unpacked folder:
+```python
+DEFAULTS['data_root'] = '/path/to/ccraft_data'
 ```
+
+Also, set the `DEFAULTS.project_dir` environmental variable to the path you cloned this repository to:
+
+```python
+DEFAULTS['project_dir'] = '/path/to/this/repository'
+```
+
 
 ### SMPL(-X) models
-Download the SMPL models using this [link](https://smpl.is.tue.mpg.de/). Unpack them into the `$HOOD_DATA/aux_data/body_models/smpl` folder.
+Download the SMPL models using this [link](https://smpl.is.tue.mpg.de/). Unpack them into the `DEFAULTS.data_root/aux_data/body_models/smpl` folder.
 
-If you want to use SMPL-X models, [download them](https://smpl-x.is.tue.mpg.de/) and unpack into `$HOOD_DATA/aux_data/body_models/smplx`.
+If you want to use SMPL-X models, [download them](https://smpl-x.is.tue.mpg.de/) and unpack into `DEFAULTS.data_root/aux_data/body_models/smplx`.
 
-In the end your `$HOOD_DATA` folder should look like this:
+In the end your `DEFAULTS.data_root` folder should look like this:
 ```
-$HOOD_DATA
+DEFAULTS.data_root
     |-- aux_data
         |-- datasplits // directory with csv data splits used for training the model
         |-- body_models

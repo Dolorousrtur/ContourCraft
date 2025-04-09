@@ -90,7 +90,7 @@ def create_one_sequence_dataloader(use_config=None, dataset_name=None, dataloade
     dataloader = DataloaderModule(dataset, dataloader_config).create_dataloader()
     return dataloader
 
-def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: str, garment_dict_file: str, config=None, **kwargs) -> DataLoader:
+def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: str, config=None, **kwargs) -> DataLoader:
 
     data_root, file_name = os.path.split(sequence_path)
     file_name, _ = os.path.splitext(file_name)
@@ -98,9 +98,6 @@ def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: st
     if config is None:
         config = 'contourcraft'
 
-    # dataloader = create_one_sequence_dataloader(use_config=config, data_root=data_root, single_sequence_file=file_name,
-    #                                             single_sequence_garment=garment_name, garment_dict_file=garment_dict_file,
-    #                                             **kwargs)
     dataloader = create_one_sequence_dataloader(use_config=config, data_root=data_root, single_sequence_file=file_name,
                                             single_sequence_garment=garment_name,
                                             **kwargs)

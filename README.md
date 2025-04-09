@@ -8,7 +8,7 @@ This is a repository for the paper [**"ContourCraft: Learning to Resolve Interse
 It is based on and fully includes the code for the paper  [**"HOOD: Hierarchical Graphs for Generalized Modelling of Clothing Dynamics"**](https://arxiv.org/abs/2212.07242)
 
 
-**NOTE:** This repo precisely follows the structure and includes all functionality of the HOOD repo. The main difference is the added code and model for **ContourCraft**. You can run inference of the **ContourCraft** model using `Inference.ipynb` or `Inference_from_any_pose.ipynb` (more details below), same as in HOOD. Soon training code for ContourCraft and more functionality specific to multi-layer outfits will be added.
+**NOTE:** This repo precisely follows the structure and includes all functionality of the HOOD repo. The main difference is the added code and model for **ContourCraft**. You can run inference of the **ContourCraft** model using `Inference.ipynb` or `Inference_from_mesh_sequence.ipynb` (more details below), same as in HOOD. Soon training code for ContourCraft and more functionality specific to multi-layer outfits will be added.
 
 TODO list:
 - [x] Support for SMPL-X body model along with SMPL
@@ -27,7 +27,7 @@ The jupyter notebook [Inference.ipynb](Inference.ipynb) contains an example of h
 
 It also has code for adding a new garment from an .obj file.
 
-To run inference starting from arbitrary garment pose and arbitrary mesh sequence refer to the [InferenceFromMeshSequence.ipynb](Inference_from_any_pose.ipynb) notebook.  
+To run inference starting from arbitrary garment pose and arbitrary mesh sequence refer to the [Inference_from_mesh_sequence.ipynb](Inference_from_mesh_sequence.ipynb) notebook.  
 
 
 

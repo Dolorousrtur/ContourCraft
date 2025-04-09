@@ -49,7 +49,7 @@ def find_close_faces(vertices, faces, threshold=0):
     vertices: Vx3
     faces: Fx3
 
-    return: pairs of (almost) colliding faces Nx2
+    return: pairs of (almost) copccraftlliding faces Nx2
     """
     # threshold = 0
     triangles = vertices[faces].unsqueeze(dim=0).contiguous()

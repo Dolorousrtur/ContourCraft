@@ -495,7 +495,6 @@ class Runner(nn.Module):
         iter_num = sample['cloth'].iter[0].item()
 
         for i in range(roll_steps):
-            # print('short i', i)
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
 
             is_first_step = i == 0
@@ -586,7 +585,6 @@ class Runner(nn.Module):
         roll_steps = min(roll_steps, self.mcfg.roll_max_long)
 
         for i in range(roll_steps):
-            # print('long i', i)
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
             is_last_step = i == roll_steps - 1
 
