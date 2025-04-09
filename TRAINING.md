@@ -4,7 +4,7 @@ Here will describe all the steps necessary for training a ContourCraft model fro
 
 ## Data preparation
 
-First, if you haven't already, you'll need to download and set up the path to the auxiliary data folder. To do this, follow [this section in INSTALL.md](INSTALL.md#download-data).
+First, if you haven't already, you'll need to download and set up the path to the auxilliary data folder. To do this, follow [this section in INSTALL.md](INSTALL.md#download-data).
 
 Then, you'll need to download the CMU split of the AMASS dataset that contains SMPL pose sequences we use during the training.
 
