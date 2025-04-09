@@ -212,7 +212,6 @@ class Runner(nn.Module):
             if n_steps == 0:
                 break
 
-
             with TorchTimer(metrics_dict, 'hood_time', start=start, end=end):
                 sample_step = self.model(sample_step)
             ncoll = self.safecheck_solver.calc_tritri_collisions2(sample_step, verts_key='pred_pos')
