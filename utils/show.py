@@ -1,15 +1,9 @@
 import os
 import sys
 from pathlib import Path
+from utils.defaults import DEFAULTS
 
-
-if 'HOOD_PROJECT' in os.environ and os.path.exists(os.environ['HOOD_PROJECT']):
-    sys.path.append(os.environ['HOOD_PROJECT'])
-else:
-    file_path = Path(__file__).parent.parent
-    sys.path.append(str(file_path))
-    # assert False
-
+sys.path.append(DEFAULTS.project_dir)
 from dataclasses import dataclass
 
 import numpy as np

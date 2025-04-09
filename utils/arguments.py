@@ -41,7 +41,7 @@ class RestartConfig:
 
 @dataclass
 class MainConfig:
-    config: Optional[str] = None           # name of the config file relative to $HOOD_PROJECT/configs (without .yaml)
+    config: Optional[str] = None           # name of the config file relative to $DEFAULTS.project_dir/configs (without .yaml)
 
     device: str = 'cuda:0'                 # device to use
     dataloader: DataConfig = DataConfig()
