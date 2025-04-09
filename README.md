@@ -148,6 +148,4 @@ If you use this repository in your paper, please cite:
       pages={1--10},
       year={2024}
       }
-
-
 ```
