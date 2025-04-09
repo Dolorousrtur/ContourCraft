@@ -29,6 +29,7 @@ class Config:
     message_passing_steps: int = 15
     collision_radius: float = 5e-3
     body_collision_radius: float = 5e-3
+    fake_icontour_attraction_share: float = 0.1
     architecture: str = "f|f|f|f|f|f|f|f|f|f|f|f|f|f|f"
     selfcoll: bool = True
     n_coarse_levels: int = 2
@@ -176,7 +177,7 @@ class Model(nn.Module):
 
         return example
 
-    def make_face2node(self, example, nodes_from, faces_to, mask_is_contour, nodes_enclosed_or_nenc_mask):
+    def make_face2node(self, example, nodes_from, faces_to, mask_is_contour, fake_icontour, nodes_enclosed_or_nenc_mask):
 
 
         verts = example['cloth'].pos
@@ -200,19 +201,25 @@ class Model(nn.Module):
         dists_normal = (relative_pos * normals_to).sum(-1, keepdim=True)
         node2face = dists_normal * normals_to
 
-        icontour_grad_proj = (icontour_grad_from * normals_to).sum(-1)
-        icontour_sign = torch.sign(icontour_grad_proj)
-        prev_sign = torch.sign(dists_normal)[:, 0]
+        if fake_icontour:
+            attraction_mask = torch.rand_like(dists_normal) < self.mcfg.fake_icontour_attraction_share
+            attraction_mask = attraction_mask[:, 0]
 
-        if nodes_enclosed_or_nenc_mask is None:
-            mask_encompassed = torch.zeros_like(icontour_sign).bool()
+            repulsion_sign[attraction_mask] = -1
         else:
-            mask_encompassed = nodes_enclosed_or_nenc_mask[nodes_from]
+            icontour_grad_proj = (icontour_grad_from * normals_to).sum(-1)
+            icontour_sign = torch.sign(icontour_grad_proj)
+            prev_sign = torch.sign(dists_normal)[:, 0]
 
-        mask_icgrad = icontour_sign[mask_is_contour] * prev_sign[mask_is_contour]
-        mask_icgrad = mask_icgrad == -1
+            if nodes_enclosed_or_nenc_mask is None:
+                mask_encompassed = torch.zeros_like(icontour_sign).bool()
+            else:
+                mask_encompassed = nodes_enclosed_or_nenc_mask[nodes_from]
 
-        repulsion_sign[mask_encompassed] = -1
+            mask_icgrad = icontour_sign[mask_is_contour] * prev_sign[mask_is_contour]
+            mask_icgrad = mask_icgrad == -1
+
+            repulsion_sign[mask_encompassed] = -1
 
         node2face[dists_normal[:,0] < 0] *= -1
         n2f_distance = dists_normal.abs()
@@ -236,11 +243,29 @@ class Model(nn.Module):
 
         return example
 
-    def add_world_edges(self, example): # TODO: pass fake_icontour
+    def add_world_edges(self, example, is_world_edges=True, fake_icontour=False):
         cloth_pos = example['cloth'].pos
         faces_cloth = example['cloth'].faces_batch.T
         icontour_grad = example['cloth'].icontour_grad
         device = cloth_pos.device
+
+        if not is_world_edges:
+            edge_index = torch.zeros((2, 0), dtype=torch.long, device=device)
+            labels = torch.zeros((0, 1), dtype=torch.long, device=device)
+            nodes_from = torch.zeros((0, 1), dtype=torch.long, device=device)
+            faces_to = torch.zeros((0, 1), dtype=torch.long, device=device)
+            node2face = torch.zeros((0, 3), dtype=torch.float, device=device)
+            signed_distance = torch.zeros((0, 1), dtype=torch.float, device=device)
+
+            for et in ['repulsion_edge', 'attraction_edge']:
+                example['cloth', et, 'cloth'].edge_index = edge_index
+                example['cloth', et, 'cloth'].labels = labels
+                example['cloth', et, 'cloth'].nodes_from = nodes_from
+                example['cloth', et, 'cloth'].faces_to = faces_to
+                example['cloth', et, 'cloth'].node2face = node2face
+                example['cloth', et, 'cloth'].signed_distance = signed_distance
+            return example
+
 
 
         obstacle_pos = None
@@ -299,7 +324,7 @@ class Model(nn.Module):
             faces_to_all = faces_to_all[mask]
             mask_is_contour = mask_is_contour[mask]
 
-        node2face, n2f_distance, repulsion_sign = self.make_face2node(example, nodes_from_all, faces_to_all, mask_is_contour, nodes_enclosed_or_nenc_mask)
+        node2face, n2f_distance, repulsion_sign = self.make_face2node(example, nodes_from_all, faces_to_all, mask_is_contour, fake_icontour, nodes_enclosed_or_nenc_mask)
         repulsion_sign = repulsion_sign[:, 0]
 
         if self.mcfg.allrep:
@@ -326,14 +351,14 @@ class Model(nn.Module):
         example['cloth', key, 'cloth'].edge_index = edges
         return example
 
-    def add_edges(self, sample):
+    def add_edges(self, sample, is_world_edges=True, fake_icontour=False):
         B = sample.num_graphs
 
         examples_updated = []
         for i in range(B):
             example = sample.get_example(i)
 
-            example = self.add_world_edges(example)
+            example = self.add_world_edges(example, is_world_edges=is_world_edges, fake_icontour=fake_icontour)
             example = self.add_body_edges(example)
 
             example = self.filter_mesh_edges(example, 'mesh_edge')
@@ -362,8 +387,6 @@ class Model(nn.Module):
         rest_pos = sample['cloth'].rest_pos
         edges = sample['cloth', edge_label, 'cloth'].edge_index.T
 
-
-
         relative_pos = self.get_relative_pos(pos, edges)
         relative_pos_norm = torch.norm(relative_pos, dim=-1, keepdim=True)
 
@@ -374,8 +397,6 @@ class Model(nn.Module):
         lens = edge_slice[1:] - edge_slice[:-1]
 
         is_init = self.make_is_init(sample, lens)
-
-
         bending_coeff = sample['cloth', edge_label, 'cloth'].bending_coeff_input
         lame_mu = sample['cloth', edge_label, 'cloth'].lame_mu_input
         lame_lambda = sample['cloth', edge_label, 'cloth'].lame_lambda_input
@@ -425,12 +446,6 @@ class Model(nn.Module):
         lens = edge_slice[1:] - edge_slice[:-1]
 
         is_init = self.make_is_init(sample, lens)
-        # bending_coeff = make_pervertex_tensor_from_lens(lens, sample['cloth'].bending_coeff_input)
-        # lame_mu = make_pervertex_tensor_from_lens(lens, sample['cloth'].lame_mu_input)
-        # lame_lambda = make_pervertex_tensor_from_lens(lens, sample['cloth'].lame_lambda_input)
-
-
-
         bending_coeff = sample['cloth', edge_label, 'cloth'].bending_coeff_input
         lame_mu = sample['cloth', edge_label, 'cloth'].lame_mu_input
         lame_lambda = sample['cloth', edge_label, 'cloth'].lame_lambda_input
@@ -442,7 +457,6 @@ class Model(nn.Module):
             embeddings = torch.zeros(labels.shape[0], 4).to(pos.device)
         else:
             embeddings = self.embed(labels, self.edgetype_embedding)
-            # embeddings = self.edgetype_embedding(labels[:, 0])
 
         edge_features_to_norm = torch.cat([
             relative_pos,
@@ -563,7 +577,6 @@ class Model(nn.Module):
             if k not in sample.node_types:
                 continue
             vertex_level = sample[k].vertex_level
-            vertex_level = torch.clamp(vertex_level, 0, self.mcfg.n_coarse_levels)
 
             vertex_level = torch.clamp(vertex_level, 0, self.mcfg.n_coarse_levels)
 
@@ -572,13 +585,9 @@ class Model(nn.Module):
         return sample
     
     def add_materials_to_nodes(self, sample):
-
-        # print(sample)
-
         for k in ['cloth', 'obstacle']:
             if k not in sample.node_types:
                 continue
-            # print(k)
             velocity = sample[k].velocity
             device = velocity.device
             if k == 'obstacle':
@@ -624,8 +633,7 @@ class Model(nn.Module):
 
             
         for edge_label in ['repulsion_edge', 'attraction_edge']:
-            sample = self.add_materials_to_mesh_edges(sample, edge_label)        
-
+            sample = self.add_materials_to_mesh_edges(sample, edge_label)
         return sample
 
     def add_node_features(self, sample):
@@ -650,7 +658,6 @@ class Model(nn.Module):
                 v_mass = sample[k].v_mass
             else:
                 v_mass = torch.ones_like(velocity[:, :1]) * -1
-
 
             bending_coeff = sample[k].bending_coeff_input
             lame_mu = sample[k].lame_mu_input
@@ -720,13 +727,13 @@ class Model(nn.Module):
 
         return sample
 
-    def prepare_inputs(self, sample):
+    def prepare_inputs(self, sample, is_world_edges=True, fake_icontour=False):
         """Builds input graph."""
 
         sample = self.replace_pinned_verts(sample)
 
         # construct graph edges
-        sample = self.add_edges(sample)
+        sample = self.add_edges(sample, is_world_edges=is_world_edges, fake_icontour=fake_icontour)
 
 
         sample = self.add_materials(sample)
@@ -741,7 +748,6 @@ class Model(nn.Module):
 
         for edge_label in ['repulsion_edge', 'attraction_edge']:
             sample = self._create_world_edge_set(sample, edge_label)
-            
 
         if 'obstacle' in sample.node_types:
             sample = self._create_body_edge_set(sample)
@@ -760,6 +766,7 @@ class Model(nn.Module):
             pinned_mask = torch.logical_or(pinned_mask, torch.logical_not(node_mask))
 
         cloth_features = sample['cloth'].node_features
+
 
         acceleration = self._output_normalizer.inverse(cloth_features[:, :3])
         sample = add_field_to_pyg_batch(sample, 'pred_acceleration', acceleration, 'cloth', 'pos')
@@ -794,10 +801,14 @@ class Model(nn.Module):
         sample = add_field_to_pyg_batch(sample, 'target_acceleration', target_acceleration, 'cloth', 'pos')
         return sample
 
-
-    def add_icontour(self, sample):
+    def add_icontour(self, sample, world_edges, fake_icontour):
         cloth_pos = sample['cloth'].pos
         cloth_faces = sample['cloth'].faces_batch.T
+
+        if not world_edges or fake_icontour:
+            icontour_grad = torch.zeros_like(cloth_pos)
+            add_field_to_pyg_batch(sample, 'icontour_grad', icontour_grad, 'cloth', 'pos')
+            return sample
 
         is_cutout = 'faces_cutout_mask_batch' in sample['cloth']
 
@@ -808,7 +819,6 @@ class Model(nn.Module):
             cloth_faces_masked = cloth_faces
 
         icontour_grad, ic_dict = compute_icontour_grad(cloth_pos, cloth_faces_masked, cl_weighting=True)
-
 
         add_field_to_pyg_batch(sample, 'icontour_grad', icontour_grad, 'cloth', 'pos')
 
@@ -831,12 +841,9 @@ class Model(nn.Module):
 
         return sample
 
-    def forward(self, inputs):
-
-        inputs = self.add_icontour(inputs)
-        sample = self.prepare_inputs(inputs)
-
+    def forward(self, inputs, world_edges=True, fake_icontour=False): 
+        inputs = self.add_icontour(inputs, world_edges, fake_icontour)
+        sample = self.prepare_inputs(inputs, is_world_edges=world_edges, fake_icontour=fake_icontour)
         sample = self._learned_model(sample)
         sample = self._get_position(sample)
-
         return sample

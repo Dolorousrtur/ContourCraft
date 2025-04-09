@@ -8,7 +8,7 @@ This is a repository for the paper [**"ContourCraft: Learning to Resolve Interse
 It is based on and fully includes the code for the paper  [**"HOOD: Hierarchical Graphs for Generalized Modelling of Clothing Dynamics"**](https://arxiv.org/abs/2212.07242)
 
 
-**NOTE:** This repo precisely follows the structure and includes all functionality of the HOOD repo. The main difference is the added code and model for **ContourCraft**. You can run inference of the **ContourCraft** model using `Inference.ipynb` or `Inference_from_any_pose.ipynb` (more details below), same as in HOOD. Soon training code for ContourCraft and more functionality specific to multi-layer outfits will be added.
+**NOTE:** This repo precisely follows the structure and includes all functionality of the HOOD repo. The main difference is the added code and model for **ContourCraft**. You can run inference of the **ContourCraft** model using `Inference.ipynb` or `Inference_from_mesh_sequence.ipynb` (more details below), same as in HOOD. Soon more functionality specific to multi-layer outfits will be added.
 
 TODO list:
 - [x] Support for SMPL-X body model along with SMPL
@@ -20,19 +20,21 @@ TODO list:
 ## Installation
 Follow [INSTALL.md](INSTALL.md) to install the environment and download data required for running ContourCraft.
 
-
-
 ## Inference
 The jupyter notebook [Inference.ipynb](Inference.ipynb) contains an example of how to run inference of a trained HOOD model given a garment and a pose sequence.
 
 It also has code for adding a new garment from an .obj file.
 
-To run inference starting from arbitrary garment pose and arbitrary mesh sequence refer to the [InferenceFromMeshSequence.ipynb](Inference_from_any_pose.ipynb) notebook.  
+To run inference starting from arbitrary garment pose and arbitrary mesh sequence refer to the [Inference_from_mesh_sequence.ipynb](Inference_from_mesh_sequence.ipynb) notebook.  
 
 
+
+## Training
+Follow the instructions in [INSTALL.md](INSTALL.md) to train a ContourCraft model from scratch.
 
 ## Repository structure
-See the [RepoIntro.md](RepoIntro.md) for more details on the repository structure.
+The repository structure closely follows the repository for HOOD. Please see [RepoIntro.md](https://github.com/Dolorousrtur/HOOD/blob/main/RepoIntro.md)  in the HOOD repository for more details.
+
 
 
 

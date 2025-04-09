@@ -10,18 +10,16 @@ from utils.common import gather
 @dataclass
 class Config:
     weight: float = 1.
-    return_average: bool = True
 
 
 def create(mcfg):
-    return Criterion(weight=mcfg.weight, return_average=mcfg.return_average)
+    return Criterion(weight=mcfg.weight)
 
 
 class Criterion(nn.Module):
-    def __init__(self, weight, return_average=True):
+    def __init__(self, weight):
         super().__init__()
         self.weight = weight
-        self.return_average = return_average
         self.face_normals_f = FaceNormals()
         self.name = 'bending_energy'
 
@@ -33,12 +31,19 @@ class Criterion(nn.Module):
         f_area = example['cloth'].f_area
         bending_coeff = example['cloth'].bending_coeff
 
+        if 'faces_cutout_mask_batch' in example['cloth']:
+            faces_mask = example['cloth'].faces_cutout_mask_batch[0]
+            f_connectivity_mask = faces_mask[f_connectivity].all(dim=1)
+            f_connectivity = f_connectivity[f_connectivity_mask]
+            f_connectivity_edges = f_connectivity_edges[f_connectivity_mask]
+
         fn = self.face_normals_f(pred_pos.unsqueeze(0), faces.unsqueeze(0))[0]
 
         n = gather(fn, f_connectivity, 0, 1, 1)
         n0, n1 = torch.unbind(n, dim=-2)
 
         v = gather(pred_pos, f_connectivity_edges, 0, 1, 1)
+
         v0, v1 = torch.unbind(v, dim=-2)
         e = v1 - v0
         l = torch.norm(e, dim=-1, keepdim=True)
@@ -64,6 +69,6 @@ class Criterion(nn.Module):
             loss_sample = self.calc_single(sample.get_example(i))
             loss_list.append(loss_sample)
 
-        loss = sum(loss_list) / B
+        loss = sum(loss_list) / B * self.weight
 
-        return dict(loss=loss)
+        return dict(loss=loss, weight=self.weight)

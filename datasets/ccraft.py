@@ -1,7 +1,10 @@
+# individual garment dicts
+from functools import partial
 import importlib
 import os
 import pickle
 from dataclasses import dataclass, MISSING
+from random import random
 from typing import Optional, Dict, Tuple
 
 import numpy as np
@@ -10,11 +13,10 @@ import smplx
 import torch
 from smplx import SMPL
 from torch_geometric.data import HeteroData
-from loguru import logger
 
 from utils.coarse import make_coarse_edges
 from utils.common import NodeType, triangles_to_edges, separate_arms
-from utils.datasets import load_garments_dict, make_garment_smpl_dict
+from utils.datasets import build_smpl_bygender, convert_lbs_dict, load_garments_dict, make_garment_smpl_dict
 from utils.defaults import DEFAULTS
 from utils.garment_smpl import GarmentSMPL
 from utils.io import pickle_load
@@ -22,15 +24,16 @@ from utils.io import pickle_load
 
 @dataclass
 class Config:
-    garment_dict_file: str = MISSING  # Path to the garment dict file with data for all garments relative to $HOOD_DATA/aux_data/
-    data_root: Optional[str] = None   # Path to the data root relative to $HOOD_DATA/
-    body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $HOOD_DATA/aux_data/
+    # garment_dict_file: str = MISSING  # Path to the garment dict file with data for all garments relative to $DEFAULTS.data_root/aux_data/
+    garment_dicts_dir: str = MISSING  # Path to the garment dict file with data for all garments relative to $DEFAULTS.data_root/aux_data/
+    data_root: str = MISSING  # Path to the data root relative to $DEFAULTS.data_root/
+    body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $DEFAULTS.data_root/aux_data/
     model_type: str = 'smpl'  # Type of the body model ('smpl' or 'smplx')
-    gender: str = 'female' # Gender of the body model ('male' | 'female' | 'neutral')    
-    split_path: Optional[str] = None  # Path to the .csv split file relative to $HOOD_DATA/aux_data/
+    split_path: Optional[str] = None  # Path to the .csv split file relative to $DEFAULTS.data_root/aux_data/
     obstacle_dict_file: Optional[
-        str] = None  # Path to the file with auxiliary data for obstacles relative to $HOOD_DATA/aux_data/
+        str] = None  # Path to the file with auxiliary data for obstacles relative to $DEFAULTS.data_root/aux_data/
     
+    # rollout_steps: int = -1
 
     sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
     noise_scale: float = 3e-3  # Noise scale for the garment vertices (not used in validation)
@@ -46,23 +49,16 @@ class Config:
     separate_arms: bool = False  # Whether to separate the arms from the rest of the body (to avoid body self-intersections)
     zero_betas: bool = False  # Whether to set the beta parameters to zero
     button_edges: bool = False  # Whether to load the button edges
-
-    add_uv: bool = False  # Whether to add uv faces and vertices
-
-    n_initialization_frames: int = -1  # Use to start the simulation from canonical geometry and interpolate to the first frame of the sequence
-
-
-    single_sequence: bool = False  # Whether to load a single sequence (used in Inference.ipynb)
     single_sequence_file: Optional[str] = None  # Path to the single sequence to load (used in Inference.ipynb)
     single_sequence_garment: Optional[
         str] = None  # Garment name for the single sequence to load (used in Inference.ipynb)
+    gender: Optional[str] = None  # Gender of the body model, only used for one-sequence inference
 
     betas_file: Optional[
         str] = None  # Path to the file with the table of beta parameters (used in validation to generate sequences with specific body shapes)
 
+    nobody_freq: float = 0.
     fps: int = 30  # Target FPS for the sequence
-
-    n_frames: int = 100  # (used for if sequence_loader is "cmu_npz_smplx_zeropos") Number of frames in the sequence
 
 def make_obstacle_dict(mcfg: Config) -> dict:
     if mcfg.obstacle_dict_file is None:
@@ -75,44 +71,47 @@ def make_obstacle_dict(mcfg: Config) -> dict:
 
 
 def create_loader(mcfg: Config):
-    garment_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.garment_dict_file)
+    # garment_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.garment_dict_file)
+    garment_dict_dir = os.path.join(DEFAULTS.aux_data, mcfg.garment_dicts_dir)
 
-    garments_dict = load_garments_dict(garment_dict_path)
+    # garments_dict = load_garments_dict(garment_dict_path)
 
     body_model_root = os.path.join(DEFAULTS.aux_data, mcfg.body_model_root)
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif 'smpl' in mcfg.sequence_loader == 'cmu_npz_':
+    elif mcfg.sequence_loader == 'cmu_npz_smpl':
         mcfg.model_type = 'smpl'
-    elif 'smplx' in  mcfg.sequence_loader:
+    elif mcfg.sequence_loader == 'cmu_npz_smplx':
         mcfg.model_type = 'smplx'
 
-    body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
+    # body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
+    body_models_dict = build_smpl_bygender(body_model_root, mcfg.model_type)
 
-    garment_smpl_model_dict = make_garment_smpl_dict(garments_dict, body_model)
+    # garment_smpl_model_dict = make_garment_smpl_dict(garments_dict, body_model)
     obstacle_dict = make_obstacle_dict(mcfg)
 
-    if 'zeropos' not in mcfg.sequence_loader and mcfg.single_sequence_file is None:
-        mcfg.data_root = os.path.join(DEFAULTS.data_root, mcfg.data_root)
+    if mcfg.single_sequence_file is None:
+        mcfg.data_root = os.path.join(DEFAULTS.CMU_root, mcfg.data_root)
 
     if mcfg.betas_file is not None:
         betas_table = pickle_load(os.path.join(DEFAULTS.aux_data, mcfg.betas_file))['betas']
     else:
         betas_table = None
 
-    loader = Loader(mcfg, garments_dict,
-                    body_model, garment_smpl_model_dict, obstacle_dict=obstacle_dict, betas_table=betas_table)
+    loader = Loader(mcfg, 
+                    body_models_dict, garment_dict_dir, obstacle_dict=obstacle_dict, betas_table=betas_table)
     return loader
 
 
 def create(mcfg: Config):
     loader = create_loader(mcfg)
 
-    if mcfg.single_sequence or mcfg.single_sequence_file is not None:
+    if mcfg.single_sequence_file is not None:
         datasplit = pd.DataFrame()
         datasplit['id'] = [mcfg.single_sequence_file]
         datasplit['garment'] = [mcfg.single_sequence_garment]
+        datasplit['gender'] = [mcfg.gender]
     else:
         split_path = os.path.join(DEFAULTS.aux_data, mcfg.split_path)
         datasplit = pd.read_csv(split_path, dtype='str')
@@ -170,27 +169,36 @@ class VertexBuilder:
 
         return verts
 
-    def pad_lookup(self, lookup: np.ndarray) -> np.ndarray:
+    def pad_verts(self, vertices: np.ndarray, n_steps) -> np.ndarray:
         """
-        Pad the lookup sequence to the required number of steps.
+        Pad the vertex sequence to the required number of steps.
         """
-        n_lookup = lookup.shape[0]
-        n_topad = self.mcfg.lookup_steps - n_lookup
+        n_lookup = vertices.shape[0]
+        n_topad = n_steps - n_lookup
+        # n_topad = self.mcfg.lookup_steps - n_lookup
 
         if n_topad == 0:
-            return lookup
+            return vertices
 
-        padlist = [lookup] + [lookup[-1:]] * n_topad
-        lookup = np.concatenate(padlist, axis=0)
-        return lookup
+        padlist = [vertices] + [vertices[-1:]] * n_topad
+        vertices = np.concatenate(padlist, axis=0)
+        return vertices
 
     def pos2tensor(self, pos: np.ndarray) -> torch.Tensor:
         """
         Convert a numpy array of vertices to a tensor and permute the axes into [VxNx3] (torch geometric format)
         """
-        pos = torch.tensor(pos).permute(1, 0, 2)
-        if not self.mcfg.wholeseq and pos.shape[1] == 1:
-            pos = pos[:, 0]
+
+        pos = torch.tensor(pos)
+
+        if len(pos.shape) == 3:
+            pos= pos.permute(1, 0, 2)
+
+        # print('self.mcfg.wholeseq', self.mcfg.wholeseq)
+        # print('pos.shape', pos.shape)
+
+        # if not self.mcfg.wholeseq and pos.shape[1] == 1:
+        #     pos = pos[:, 0]
         return pos
     
     def permute_axes(self, vertices: np.ndarray) -> np.ndarray:  
@@ -225,24 +233,37 @@ class VertexBuilder:
             all_vertices = VertexBuilder.build(sequence_dict, f_make, 0, None,
                                                **kwargs)
             all_vertices = self.permute_axes(all_vertices)
-            pos_dict['prev_pos'] = all_vertices[:-2]
-            pos_dict['pos'] = all_vertices[1:-1]
-            pos_dict['target_pos'] = all_vertices[2:]
+            # pos_dict['prev_pos'] = all_vertices[:-2]
+            # pos_dict['pos'] = all_vertices[1:-1]
+            # pos_dict['target_pos'] = all_vertices[2:]
+
+            pos_dict["prev_pos"] = all_vertices[0]
+            pos_dict["pos"] = all_vertices[1]
+            pos_dict["target_pos"] = all_vertices[2]
+
+            lookup = all_vertices[2:]
+            # lookup = self.pad_lookup(lookup)
+
+            pos_dict["lookup"] = lookup
 
         # Build the vertices for several frames starting from `idx`
         else:
-            n_lookup = 1
-            if self.mcfg.lookup_steps > 0:
-                n_lookup = min(self.mcfg.lookup_steps, N_steps - idx - 2)
+            n_lookup = min(self.mcfg.lookup_steps, N_steps - idx - 2)
             all_vertices = VertexBuilder.build(sequence_dict, f_make, idx, idx + 2 + n_lookup,
                                                **kwargs)
             all_vertices = self.permute_axes(all_vertices)
-            pos_dict["prev_pos"] = all_vertices[:1]
-            pos_dict["pos"] = all_vertices[1:2]
-            pos_dict["target_pos"] = all_vertices[2:3]
+            # pos_dict["prev_pos"] = all_vertices[:1]
+            # pos_dict["pos"] = all_vertices[1:2]
+            # pos_dict["target_pos"] = all_vertices[2:3]
+
+
+            all_vertices = self.pad_verts(all_vertices, self.mcfg.lookup_steps+3)
+
+            pos_dict["prev_pos"] = all_vertices[0]
+            pos_dict["pos"] = all_vertices[1]
+            pos_dict["target_pos"] = all_vertices[2]
 
             lookup = all_vertices[2:]
-            lookup = self.pad_lookup(lookup)
 
             pos_dict["lookup"] = lookup
 
@@ -298,15 +319,19 @@ class GarmentBuilder:
     Class to build the garment meshes from SMPL parameters.
     """
 
-    def __init__(self, mcfg: Config, garments_dict: dict, garment_smpl_model_dict: Dict[str, GarmentSMPL]):
+    # def __init__(self, mcfg: Config, garments_dict: dict, garment_smpl_model_dict: Dict[str, GarmentSMPL]):
+    def __init__(self, mcfg: Config, body_models_dict, garment_dicts_dir: str):
         """
         :param mcfg: config
         :param garments_dict: dictionary with data for all garments
         :param garment_smpl_model_dict: dictionary with SMPL models for all garments
         """
         self.mcfg = mcfg
-        self.garments_dict = garments_dict
-        self.garment_smpl_model_dict = garment_smpl_model_dict
+        self.garment_dicts_dir = garment_dicts_dir
+        self.garments_dict = {}
+        self.garment_smpl_model_dict = {}
+        # self.body_model = body_model
+        self.body_models_dict = body_models_dict
 
         self.vertex_builder = VertexBuilder(mcfg)
         self.noise_maker = NoiseMaker(mcfg)
@@ -357,6 +382,8 @@ class GarmentBuilder:
 
         full_pose = torch.cat(full_pose, dim=1)
 
+
+
         garment_smpl_model = self.garment_smpl_model_dict[garment_name]
         with torch.no_grad():
             vertices = garment_smpl_model.make_vertices(betas=betas, full_pose=full_pose, transl=transl).numpy()
@@ -365,6 +392,7 @@ class GarmentBuilder:
             vertices = vertices[0]
 
         return vertices
+
 
 
     def add_vertex_type(self, sample: HeteroData, garment_name: str) -> HeteroData:
@@ -581,40 +609,23 @@ class GarmentBuilder:
 
         sample['cloth'].garment_id = torch.LongTensor(garment_id)
         return sample
-
-    def add_uv(self, sample: HeteroData, garment_name: str) -> HeteroData:
-        garment_dict = self.garments_dict[garment_name]
-
-        if not self.mcfg.add_uv:
-            return sample
     
-        if self.mcfg.add_uv and 'verts_uv' not in garment_dict:
-            raise ValueError(f'No UV data for garment {garment_name}')
-        
-        verts_uv = garment_dict['verts_uv']
-        sample['cloth'].uv_coords = torch.FloatTensor(verts_uv)
-
-        faces_uv = garment_dict['faces_uv']
-        sample['cloth'].uv_faces_batch = torch.LongTensor(faces_uv).T
-
-        return sample
-
 
     def add_garment_to_sample(self, sample_full, sample_garment):
 
         if 'cloth' in sample_full.node_types:
             cloth_data_full = sample_full['cloth']
             N_exist = sample_full['cloth'].pos.shape[0]
-            N_uv_exist = sample_full['cloth'].uv_coords.shape[0]
             garment_id = sample_full['cloth'].garment_id.max()+1
         else:
             cloth_data_full = None
             N_exist = 0
-            N_uv_exist = 0
             garment_id = 0
+
 
         cloth_data_garment = sample_garment['cloth']
         N_new = cloth_data_garment.pos.shape[0]
+
 
         if 'garment_id' in sample_garment['cloth']:
             garment_id_tensor = sample_garment['cloth'].garment_id + garment_id
@@ -638,30 +649,28 @@ class GarmentBuilder:
 
 
         for k, v in cloth_data_garment._mapping.items():
-
             if 'batch' in k:
-                if 'uv' in k:
-                    v += N_uv_exist
-                else:
-                    v += N_exist
+                v += N_exist
             if cloth_data_full is not None:
-
-                if k == 'uv_coords':
-                    verts_uv_full = cloth_data_full[k]
-                    verts_uv_garment = v
-
-                    uv_full_max_x = verts_uv_full[:, 0].max()
-                    verts_uv_garment[:, 0] += uv_full_max_x
-                    v = verts_uv_garment
-
                 dim_cat = 1 if 'batch' in k else 0
                 v = torch.cat([cloth_data_full[k], v], dim=dim_cat)
             sample_full['cloth'][k] = v
-            
-
         return sample_full
 
+    def load_garment_dict(self, garment_name: str) -> dict:
+        if garment_name not in self.garments_dict:
+            garment_dict_path = os.path.join(self.garment_dicts_dir, garment_name + '.pkl')
+            garment_dict = pickle_load(garment_dict_path)
 
+            garment_dict['lbs'] = convert_lbs_dict(garment_dict['lbs'])
+            self.garments_dict[garment_name] = garment_dict
+
+        if garment_name not in self.garment_smpl_model_dict:
+            garment_dict = self.garments_dict[garment_name]
+            gender = garment_dict.get('gender', self.mcfg.gender)
+            body_model = self.body_models_dict[gender]
+            garment_smpl_model = GarmentSMPL(body_model, garment_dict['lbs'])
+            self.garment_smpl_model_dict[garment_name] = garment_smpl_model
 
     def build(self, sample: HeteroData, sequence_dict: dict, idx: int, garment_name: str) -> HeteroData:
         """
@@ -697,6 +706,8 @@ class GarmentBuilder:
 
         """
 
+        self.load_garment_dict(garment_name)
+
         sample_garment = HeteroData()
         sample_garment = self.vertex_builder.add_verts(sample_garment, sequence_dict, idx, self.make_cloth_verts, "cloth",
                                                garment_name=garment_name)
@@ -708,7 +719,6 @@ class GarmentBuilder:
         sample_garment = self.add_coarse(sample_garment, garment_name)
         sample_garment = self.add_button_edges(sample_garment, garment_name)
         sample_garment = self.add_garment_id(sample_garment, garment_name)
-        sample_garment = self.add_uv(sample_garment, garment_name)
 
         sample = self.add_garment_to_sample(sample, sample_garment)
 
@@ -720,19 +730,20 @@ class BodyBuilder:
     Class for building body meshed from SMPL parameters
     """
 
-    def __init__(self, mcfg: Config, smpl_model: SMPL, obstacle_dict: dict):
+    def __init__(self, mcfg: Config, body_models_dict: SMPL, obstacle_dict: dict):
         """
         :param mcfg: Config
         :param smpl_model:
         :param obstacle_dict: auxiliary data for the obstacle
                 obstacle_dict['vertex_type']: vertex type (1 - regular obstacle node, 2 - hand node (omitted during inference to avoid body self-penetrations))
         """
-        self.smpl_model = smpl_model
+        # self.smpl_model = smpl_model
+        self.body_models_dict = body_models_dict
         self.obstacle_dict = obstacle_dict
         self.mcfg = mcfg
         self.vertex_builder = VertexBuilder(mcfg)
 
-    def make_smpl_vertices(self, sequence_dict, **kwargs) -> np.ndarray:
+    def make_smpl_vertices(self, sequence_dict, gender, **kwargs) -> np.ndarray:
         """
         Create body vertices from SMPL parameters (used in VertexBuilder.add_verts)
 
@@ -762,8 +773,9 @@ class BodyBuilder:
 
         wholeseq = self.mcfg.wholeseq or sequence_dict['body_pose'].shape[0] > 1
 
+        body_model = self.body_models_dict[gender]
         with torch.no_grad():
-            smpl_output = self.smpl_model(**sequence_dict)
+            smpl_output = body_model(**sequence_dict)
         vertices = smpl_output.vertices.numpy().astype(np.float32)
 
         if not wholeseq:
@@ -775,21 +787,20 @@ class BodyBuilder:
         """
         Add vertex type field to the obstacle object in the sample
         """
-
         N = sample['obstacle'].pos.shape[0]
-
-        if 'vertex_type' in self.obstacle_dict and self.obstacle_dict['vertex_type'].shape[0] == N:
+        if 'vertex_type' in self.obstacle_dict:
             vertex_type = self.obstacle_dict['vertex_type']
         else:
             vertex_type = np.ones((N, 1)).astype(np.int64)
         sample['obstacle'].vertex_type = torch.tensor(vertex_type)
         return sample
 
-    def add_faces(self, sample: HeteroData) -> HeteroData:
+    def add_faces(self, sample: HeteroData, gender:str) -> HeteroData:
         """
         Add body faces to the obstacle object in the sample
         """
-        faces = torch.tensor(self.smpl_model.faces.astype(np.int64))
+        body_model = self.body_models_dict[gender]
+        faces = torch.tensor(body_model.faces.astype(np.int64))
         sample['obstacle'].faces_batch = faces.T
         return sample
 
@@ -802,7 +813,7 @@ class BodyBuilder:
         sample['obstacle'].vertex_level = vertex_level
         return sample
 
-    def build(self, sample: HeteroData, sequence_dict: dict, idx: int) -> HeteroData:
+    def build(self, sample: HeteroData, sequence_dict: dict, idx: int, gender: str) -> HeteroData:
         """
         Add all data for the body (obstacle) to the sample
         :param sample: HeteroData object to add data to
@@ -826,9 +837,10 @@ class BodyBuilder:
 
         """
 
-        sample = self.vertex_builder.add_verts(sample, sequence_dict, idx, self.make_smpl_vertices, "obstacle")
+        make_smpl_vertices = partial(self.make_smpl_vertices, gender=gender)
+        sample = self.vertex_builder.add_verts(sample, sequence_dict, idx, make_smpl_vertices, "obstacle")
         sample = self.add_vertex_type(sample)
-        sample = self.add_faces(sample)
+        sample = self.add_faces(sample, gender=gender)
         sample = self.add_vertex_level(sample)
         return sample
 
@@ -840,20 +852,23 @@ class Loader:
     Class for building HeteroData objects containing all data for a single sample
     """
 
-    def __init__(self, mcfg: Config, garments_dict: dict, smpl_model: SMPL,
-                 garment_smpl_model_dict: Dict[str, GarmentSMPL], obstacle_dict: dict, 
-                 betas_table=None):
+    # def __init__(self, mcfg: Config, garments_dict: dict, smpl_model: SMPL,
+                #  garment_smpl_model_dict: Dict[str, GarmentSMPL], obstacle_dict: dict, betas_table=None):
+    def __init__(self, mcfg: Config, body_models_dict: dict, garment_dicts_dir: str, obstacle_dict: dict, betas_table=None):
         
         sequence_loader_module = importlib.import_module(f'datasets.sequence_loaders.{mcfg.sequence_loader}')
         SequenceLoader = sequence_loader_module.SequenceLoader
 
-        self.sequence_loader = SequenceLoader(mcfg, data_path=mcfg.data_root, betas_table=betas_table)
-        self.garment_builder = GarmentBuilder(mcfg, garments_dict, garment_smpl_model_dict)
-        self.body_builder = BodyBuilder(mcfg, smpl_model, obstacle_dict)
+        self.sequence_loader = SequenceLoader(mcfg, mcfg.data_root, betas_table=betas_table)
+        # self.garment_builder = GarmentBuilder(mcfg, garments_dict, garment_smpl_model_dict)
+        self.garment_builder = GarmentBuilder(mcfg, body_models_dict, garment_dicts_dir)
+        self.body_builder = BodyBuilder(mcfg, body_models_dict, obstacle_dict)
 
         self.data_path = mcfg.data_root
 
-    def load_sample(self, fname: str, idx: int, garment_name_full: str, betas_id: int) -> HeteroData:
+        self.mcfg = mcfg
+
+    def load_sample(self, fname: str, idx: int, garment_name_full: str, gender: str, betas_id: int) -> HeteroData:
         """
         Build HeteroData object for a single sample
         :param fname: name of the pose sequence relative to self.data_path
@@ -862,15 +877,22 @@ class Loader:
         :param betas_id: index of the beta parameters in self.betas_table (only used to generate validation sequences when comparing to snug/ssch)
         :return: HelteroData object (see BodyBuilder.build and GarmentBuilder.build for details)
         """
-        sequence = self.sequence_loader.load_sequence(fname=fname, betas_id=betas_id)
+        sequence = self.sequence_loader.load_sequence(fname, betas_id=betas_id)
+
+        idx = idx // sequence['subsample']
+
         sample = HeteroData()
-        sample = self.body_builder.build(sample, sequence, idx)
+        # sample = self.body_builder.build(sample, sequence, idx, gender)
 
         garment_names = garment_name_full.split(',')
         garment_names = [x.strip() for x in garment_names]
 
         for garment_name in garment_names:
             sample = self.garment_builder.build(sample, sequence, idx, garment_name)
+
+        if random() > self.mcfg.nobody_freq:
+            sample = self.body_builder.build(sample, sequence, idx, gender)
+
             
         return sample
 
@@ -906,7 +928,13 @@ class Dataset:
         while self.all_lens[fi] <= index:
             index -= self.all_lens[fi]
             fi += 1
-        return self.datasplit.id[fi], index, self.datasplit.garment[fi]
+        if 'gender' in self.datasplit:
+            gender = self.datasplit.gender[fi]
+        else:
+            gender = 'female'
+
+        return self.datasplit.id[fi], index, self.datasplit.garment[fi], gender
+
 
     def __getitem__(self, item: int) -> HeteroData:
         """
@@ -917,14 +945,18 @@ class Dataset:
         if self.wholeseq:
             fname = self.datasplit.id[item]
             garment_name = self.datasplit.garment[item]
+            if 'gender' in self.datasplit:
+                gender = self.datasplit.gender[item]
+            else:
+                gender = 'female'
             idx = 0
 
             if 'betas_id' in self.datasplit:
                 betas_id = int(self.datasplit.betas_id[item])
         else:
-            fname, idx, garment_name = self._find_idx(item)
+            fname, idx, garment_name, gender = self._find_idx(item)
 
-        sample = self.loader.load_sample(fname, idx, garment_name, betas_id=betas_id)
+        sample = self.loader.load_sample(fname, idx, garment_name, gender, betas_id=betas_id)
         sample['sequence_name'] = fname
         sample['garment_name'] = garment_name
 

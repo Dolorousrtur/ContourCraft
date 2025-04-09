@@ -5,21 +5,15 @@ from utils.io import pickle_load
 
 
 class SampleCollector:
-    def __init__(self, mcfg, obstacle=True, changing_rest=False, body_pred=False, cloth_pred=True):
+    def __init__(self, mcfg, obstacle=True, changing_rest=False, cloth_pred=True):
         self.mcfg = mcfg
         self.obstacle = obstacle
         self.changing_rest = changing_rest
         self.objects = ['cloth', 'obstacle'] if self.obstacle else ['cloth']
-        self.body_pred = body_pred
         self.cloth_pred= cloth_pred
 
     def copy_from_prev(self, sample, prev_sample):
         if prev_sample is None:
-            if self.body_pred:
-                dn = torch.zeros_like(sample['obstacle'].pos[:, :1])
-                add_field_to_pyg_batch(sample, 'dn', dn, 'obstacle', 'pos')
-            else:
-                'NO BODY PREV'
             return sample
 
         sample['cloth'].prev_pos = prev_sample['cloth'].pos.detach()
@@ -31,17 +25,7 @@ class SampleCollector:
 
         if self.obstacle and 'obstacle' in sample.node_types:
             sample['obstacle'].prev_pos = prev_sample['obstacle'].pos
-
-            if not self.body_pred:
-                sample['obstacle'].pos = prev_sample['obstacle'].target_pos
-            else:
-                sample['obstacle'].dn = prev_sample['obstacle'].pred_dn.detach()
-                sample['obstacle'].pos = prev_sample['obstacle'].pred_pos.detach()
-
-
-            if 'curr_pn' in sample['obstacle']:
-                sample['obstacle'].prev_pn = prev_sample['obstacle'].curr_pn
-                sample['obstacle'].pn = prev_sample['obstacle'].target_pn
+            sample['obstacle'].pos = prev_sample['obstacle'].target_pos
 
         return sample
 
@@ -136,59 +120,5 @@ class SampleCollector:
                 v = v[:, idx]
                 sample[obj][k] = v
 
-
-        if 'obstacle' in sample.node_types and 'curr_pn' in sample['obstacle']:
-            for k in ['curr_pn', 'prev_pn', 'target_pn']:
-                sample['obstacle'][k] = sample['obstacle'][k][:, idx]
         return sample
 
-
-
-
-class SampleCollectorFromFile(SampleCollector):
-    def __init__(self, mcfg, obstacle=True, changing_rest=False, body_pred=False, cloth_pred=True,
-                 file_path=None, ind=0):
-        super().__init__(mcfg, obstacle, changing_rest, body_pred, cloth_pred)
-
-        self.traj_dict = pickle_load(file_path)
-        self.traj_dict['cloth'] = torch.FloatTensor(self.traj_dict['pred']).to(self.mcfg.device)
-
-        if 'obstacle' in self.traj_dict:
-            self.traj_dict['obstacle'] = torch.FloatTensor(self.traj_dict['obstacle']).to(self.mcfg.device)
-
-        self.start_ind = ind
-
-
-    def add_velocity(self, sample, prev_sample):
-        ts = sample['cloth'].timestep[0]
-        if prev_sample is not None and self.cloth_pred:
-            velocity_cloth = prev_sample['cloth'].pred_velocity
-        else:
-            velocity_cloth = sample['cloth'].pos - sample['cloth'].prev_pos
-
-        add_field_to_pyg_batch(sample, 'velocity', velocity_cloth, 'cloth', 'pos')
-
-        if self.obstacle and 'obstacle' in sample.node_types:
-            velocity_obstacle_curr = sample['obstacle'].pos - sample['obstacle'].prev_pos
-            velocity_obstacle_next = sample['obstacle'].target_pos - sample['obstacle'].pos
-
-            if self.mcfg.ts_agnostic:
-                velocity_obstacle_curr = velocity_obstacle_curr / ts
-                velocity_obstacle_next = velocity_obstacle_next / ts
-            add_field_to_pyg_batch(sample, 'velocity', velocity_obstacle_curr, 'obstacle', 'pos')
-            add_field_to_pyg_batch(sample, 'next_velocity', velocity_obstacle_next, 'obstacle', 'pos')
-
-        return sample
-
-    def sequence2sample(self, sample, idx, only_target=False):
-        for obj in self.objects:
-            if obj not in sample.node_types:
-                continue
-
-            sample[obj].target_pos = self.traj_dict[obj][idx + self.start_ind + 1]
-            if not only_target:
-                sample[obj].pos = self.traj_dict[obj][idx + self.start_ind]
-                sample[obj].prev_pos = self.traj_dict[obj][idx + self.start_ind - 1]
-
-
-        return sample

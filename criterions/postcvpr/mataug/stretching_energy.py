@@ -47,6 +47,7 @@ class Criterion(nn.Module):
     def forward(self, sample):
         Dm_inv = sample['cloth'].Dm_inv
 
+
         f_area = sample['cloth'].f_area[None, ..., 0]
         device = Dm_inv.device
 
@@ -79,6 +80,11 @@ class Criterion(nn.Module):
         f_area = f_area[0]
 
         energy = f_area * self.thickness * energy_density
-        loss = energy.sum() / B
 
-        return dict(loss=loss)
+        if 'faces_cutout_mask_batch' in example['cloth']:
+            faces_mask = sample['cloth'].faces_cutout_mask_batch[0]
+            energy = energy[faces_mask]
+
+        loss = energy.sum() / B * self.weight
+
+        return dict(loss=loss, weight=self.weight)

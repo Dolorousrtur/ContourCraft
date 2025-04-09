@@ -1,3 +1,4 @@
+from copy import deepcopy
 import importlib
 import os
 import typing
@@ -9,36 +10,45 @@ from omegaconf import OmegaConf, DictConfig
 
 from utils.dataloader import DataloaderModule
 from utils.defaults import DEFAULTS
+import torch
 
 
 @dataclass
 class ExperimentConfig:
     name: Optional[str] = None              # name for the experiment
-    save_checkpoint_every: int = 100000     # save checkpoint every n iterations
+    save_checkpoint_every: int = 1000     # save checkpoint every n iterations
+    save_checkpoint_every_wlong: int = 200     
+    n_steps_only_short: int = 50000
     n_epochs: int = 200                     # number of epochs
-    checkpoint_path: Optional[str] = None   # path to checkpoint to load
     max_iter: Optional[int] = None          # max number of iterations
-
-    enable_repulsions: bool = False
+    initial_ts: float = 1/3
+    regular_ts: float = 1/30
+    
     enable_attractions: bool = False
-    enable_attractions_from: Optional[int] = None
     
 
 @dataclass
 class DataConfig:
     num_workers: int = 0                   # number of workers for dataloader
     batch_size: int = 1                    # batch size (only 1 is supported)
+    copy_from: Optional[str] = None        # copy data from another dataloader
 
+@dataclass
+class RestartConfig:
+    checkpoint_path: Optional[str] = None  
+    step_start: Optional[int] = None  
+    load_optimizer: bool = True
 
 @dataclass
 class MainConfig:
-    config: Optional[str] = None           # name of the config file relative to $HOOD_PROJECT/configs (without .yaml)
+    config: Optional[str] = None           # name of the config file relative to $DEFAULTS.project_dir/configs (without .yaml)
 
     device: str = 'cuda:0'                 # device to use
     dataloader: DataConfig = DataConfig()
     experiment: ExperimentConfig = ExperimentConfig()
+    restart: RestartConfig = RestartConfig()
     detect_anomaly: bool = False           # torch.autograd.detect_anomaly
-    step_start: int = 0                    # start iteration
+    step_start: int = 0                    
 
 
 def struct_fix(config):
@@ -46,6 +56,7 @@ def struct_fix(config):
     for k, v in config.items():
         if type(v) == DictConfig:
             struct_fix(v)
+
 
 
 def load_module(module_type: str, module_config: DictConfig, module_name: str = None):
@@ -75,6 +86,20 @@ def load_module(module_type: str, module_config: DictConfig, module_name: str = 
         module_config[module_name] = OmegaConf.merge(default_module_config, module_config[module_name])
     return module
 
+def load_dataset_params(conf):
+    dataset_modules = {}
+
+    for dataloader_name, dataloader_conf in conf.dataloaders.items():
+
+        if 'copy_from' in dataloader_conf and dataloader_conf.copy_from is not None:
+            new_cfg = deepcopy(conf.dataloaders[dataloader_conf.copy_from])
+            new_cfg = OmegaConf.merge(new_cfg, dataloader_conf)
+            conf.dataloaders[dataloader_name] = new_cfg
+
+        dataset_module = load_module('datasets', dataloader_conf.dataset)
+        dataset_modules[dataloader_name] = dataset_module
+
+    return dataset_modules, conf
 
 def load_params(config_name: str=None, config_dir: str=None):
     """
@@ -93,8 +118,9 @@ def load_params(config_name: str=None, config_dir: str=None):
     # Load default config from MainConfig and merge in cli parameters
     conf = OmegaConf.structured(MainConfig)
     struct_fix(conf)
+
+    conf_cli = OmegaConf.from_cli()
     if config_name is None:
-        conf_cli = OmegaConf.from_cli()
         config_name = conf_cli.config
         conf = OmegaConf.merge(conf, conf_cli)
 
@@ -105,6 +131,7 @@ def load_params(config_name: str=None, config_dir: str=None):
     OmegaConf.set_struct(conf, False)
     OmegaConf.set_struct(conf_file, False)
     conf = OmegaConf.merge(conf, conf_file)
+    conf = OmegaConf.merge(conf, conf_cli)
 
     # Load modules from config
     modules = {}
@@ -119,8 +146,10 @@ def load_params(config_name: str=None, config_dir: str=None):
         criterion_module = load_module('criterions', conf.criterions, criterion_name)
         modules['criterions'][criterion_name] = criterion_module
 
-    dataset_module = load_module('datasets', conf.dataloader.dataset)
-    modules['dataset'] = dataset_module
+    # dataset_module = load_module('datasets', conf.dataloader.dataset)
+    # modules['dataset'] = dataset_module
+
+    modules['datasets'], conf, = load_dataset_params(conf)
 
     return modules, conf
 
@@ -180,7 +209,7 @@ def create_runner(modules: dict, config: DictConfig, create_aux_modules=True):
     return runner_module, runner, aux_modules
 
 
-def create_dataloader_module(modules: dict, config: DictConfig):
+def create_dataloader_modules(modules: dict, config: DictConfig):
     """
     Create a dataloader module.
     :param modules:
@@ -188,10 +217,18 @@ def create_dataloader_module(modules: dict, config: DictConfig):
     :return: DataloaderModule
     """
 
-    # create dataset object and pass it to the dataloader module
-    dataset = create_module(modules['dataset'], config['dataloader']['dataset'])
-    dataloader_m = DataloaderModule(dataset, config['dataloader'])
-    return dataloader_m
+    dataloader_modules = {}
+
+    for dataset_name, dataset_module in modules['datasets'].items():
+        dataset_cfg = config.dataloaders[dataset_name].dataset
+        dataset = create_module(dataset_module, dataset_cfg)
+        dataloader_m = DataloaderModule(dataset, config['dataloader'])
+        dataloader_modules[dataset_name] = dataloader_m
+
+    # # create dataset object and pass it to the dataloader module
+    # dataset = create_module(modules['dataset'], config['dataloader']['dataset'])
+    # dataloader_m = DataloaderModule(dataset, config['dataloader'])
+    return dataloader_modules
 
 
 def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=True):
@@ -208,5 +245,36 @@ def create_modules(modules: dict, config: DictConfig, create_aux_modules: bool=T
     """
 
     runner_module, runner, aux_modules = create_runner(modules, config, create_aux_modules=create_aux_modules)
-    dataloader_m = create_dataloader_module(modules, config)
-    return dataloader_m, runner_module, runner, aux_modules
+    dataloader_ms = create_dataloader_modules(modules, config)
+    return dataloader_ms, runner_module, runner, aux_modules
+
+def load_from_checkpoint(cfg, runner, aux_modules):
+
+    if cfg.restart.checkpoint_path is None:
+        return runner, aux_modules
+    
+    checkpoint_path = Path(DEFAULTS.data_root) / cfg.restart.checkpoint_path
+
+    if not os.path.exists(checkpoint_path):
+        return runner, aux_modules
+
+    sd = torch.load(checkpoint_path)
+    runner.load_state_dict(sd['training_module'])
+
+    print(f'LOADED CHECKPOINT FROM {checkpoint_path}')
+
+    if cfg.restart.step_start is not None:
+        cfg.step_start = cfg.restart.step_start
+
+    if cfg.restart.load_optimizer:
+
+        base_lrs = [group['initial_lr'] for group in aux_modules['optimizer'].param_groups]
+        for k, v in aux_modules.items():
+            if k in sd:
+                print(f'{k} LOADED!')
+                v.load_state_dict(sd[k])
+
+        if 'scheduler' in aux_modules:
+            aux_modules['scheduler'].base_lrs = base_lrs
+
+    return runner, aux_modules

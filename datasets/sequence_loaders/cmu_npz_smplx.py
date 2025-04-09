@@ -83,6 +83,7 @@ class SequenceLoader:
                   'jaw_pose', 'leye_pose', 'reye_pose']:            
             sequence[k] = sequence[k][::skip_every]
 
+        sequence['subsample'] = skip_every
         return sequence
     
     def add_initialization_frames(self, sequence: dict) -> dict:

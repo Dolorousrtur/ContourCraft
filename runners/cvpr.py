@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Optional
 
+from runners.utils.collector import SampleCollector
 import torch
 from omegaconf import II
 from omegaconf.dictconfig import DictConfig
@@ -17,7 +18,7 @@ from torch_geometric.data import Batch
 from tqdm import tqdm
 
 from utils.cloth_and_material import FaceNormals, ClothMatAug, Material
-from utils.common import move2device, gather, save_checkpoint, add_field_to_pyg_batch, \
+from utils.common import copy_pyg_batch, move2device, gather, save_checkpoint, add_field_to_pyg_batch, \
     random_between, relative_between, relative_between_log, random_between_log
 from utils.defaults import DEFAULTS
 from huepy import yellow
@@ -57,7 +58,6 @@ class Config:
     optimizer: OptimConfig = OptimConfig()
     material: MaterialConfig = MaterialConfig()
     warmup_steps: int = 100
-    n_opt_steps: int = 1
     increase_roll_every: int = -1
     roll_max: int = 1
     push_eps: float = 0.
@@ -79,18 +79,23 @@ class Runner(nn.Module):
 
         self.cloth_obj = ClothMatAug(None, always_overwrite_mass=True)
         self.normals_f = FaceNormals()
+        self.sample_collector = SampleCollector(mcfg, obstacle=True)
 
     def valid_rollout(self, sequence, n_steps=-1, bare=False, record_time=False):
 
         cloth_faces = sequence['cloth'].faces_batch.T.cpu().numpy()
         obstacle_faces = sequence['obstacle'].faces_batch.T.cpu().numpy()
 
-        n_samples = sequence['obstacle'].pos.shape[1]
-
         sequence = add_field_to_pyg_batch(sequence, 'iter', [0], 'cloth', reference_key=None)
 
         sequence = self._add_cloth_obj(sequence)
         sequence['cloth']['cloth_obj'] = self.cloth_obj
+
+        is_obstacle = 'obstacle' in sequence.node_types
+        if is_obstacle:
+            n_samples = sequence['obstacle'].lookup.shape[1]
+        else:
+            n_samples = sequence['cloth'].lookup.shape[1]
 
         if n_steps > 0:
             n_samples = min(n_samples, n_steps)
@@ -132,7 +137,7 @@ class Runner(nn.Module):
 
         cloth_state_next = None
         for i in pbar:
-            state = self.collect_sample_wholeseq(sequence, i, i - start_idx, cloth_state_next)
+            state = self.collect_sample_wholeseq(sequence, i, cloth_state_next)
 
             if i == start_idx:
                 state = self._remove_collisions(state)
@@ -156,39 +161,56 @@ class Runner(nn.Module):
 
         return trajectory, gt_trajectory, obstacle_trajectory, metrics_dict
 
-    def collect_sample_wholeseq(self, sequence, index, relative_index, cloth_state_next):
-        state = sequence.clone()
+    def collect_sample_wholeseq(self, sample, idx, prev_out_dict=None):
+        sample_step = copy_pyg_batch(sample)
 
-        for obj in ['cloth', 'obstacle']:
-
-            for k, v in sequence[obj].items():
-
-                if k in ['pos', 'prev_pos', 'target_pos']:
-                    v = v[:, index]
-                    state[obj][k] = v
-                else:
-                    state[obj][k] = v
-
-        cloth_data = state['cloth']
-        B = sequence.num_graphs
-        device = cloth_data.pos.device
-
-        if cloth_state_next is not None:
-            state['cloth'].pos = cloth_state_next['cloth'].pos
-            state['cloth'].prev_pos = cloth_state_next['cloth'].prev_pos
-
+        # coly fields from the previous step (pred_pos -> pos, pos->prev_pos)
+        sample_step = self.sample_collector.copy_from_prev(sample_step, prev_out_dict)
         ts = self.mcfg.regular_ts
-        if relative_index == 0:
-            state['cloth'].prev_pos = sequence['cloth'].pos[:, index]
-            ts = self.mcfg.initial_ts
-        elif relative_index == 1:
-            state['cloth'].prev_pos = cloth_state_next['cloth'].pos
 
-        timestep = self.make_ts_tensor(ts, B, device)
+        if idx > 0:
+            sample_step = self.sample_collector.lookup2target(sample_step, idx)
 
-        state = self.update_sample_with_timestep(state, timestep)
-        state['cloth'].cloth_obj = sequence['cloth'].cloth_obj
-        return state
+        is_init = False
+        sample_step = self.sample_collector.add_is_init(sample_step, is_init)
+        sample_step = self.sample_collector.add_timestep(sample_step, ts)
+        sample_step = self.sample_collector.add_velocity(sample_step, prev_out_dict)
+        return sample_step
+
+
+    # def collect_sample_wholeseq(self, sequence, index, relative_index, cloth_state_next):
+    #     state = sequence.clone()
+
+    #     for obj in ['cloth', 'obstacle']:
+
+    #         for k, v in sequence[obj].items():
+
+    #             if k in ['pos', 'prev_pos', 'target_pos']:
+    #                 v = v[:, index]
+    #                 state[obj][k] = v
+    #             else:
+    #                 state[obj][k] = v
+
+    #     cloth_data = state['cloth']
+    #     B = sequence.num_graphs
+    #     device = cloth_data.pos.device
+
+    #     if cloth_state_next is not None:
+    #         state['cloth'].pos = cloth_state_next['cloth'].pos
+    #         state['cloth'].prev_pos = cloth_state_next['cloth'].prev_pos
+
+    #     ts = self.mcfg.regular_ts
+    #     if relative_index == 0:
+    #         state['cloth'].prev_pos = sequence['cloth'].pos[:, index]
+    #         ts = self.mcfg.initial_ts
+    #     elif relative_index == 1:
+    #         state['cloth'].prev_pos = cloth_state_next['cloth'].pos
+
+    #     timestep = self.make_ts_tensor(ts, B, device)
+
+    #     state = self.update_sample_with_timestep(state, timestep)
+    #     state['cloth'].cloth_obj = sequence['cloth'].cloth_obj
+    #     return state
 
     def set_random_material(self, sample):
 
@@ -438,10 +460,10 @@ def run_epoch(training_module: Runner, aux_modules: dict, dataloader: DataLoader
         B = sample.num_graphs
         sample = add_field_to_pyg_batch(sample, 'iter', [global_step] * B, 'cloth', reference_key=None)
 
-        if training_module.mcfg.increase_roll_every < 0:
-            roll_steps = training_module.mcfg.n_opt_steps
+        if training_module.mcfg.increase_roll_every <= 0:
+            roll_steps = 1
         else:
-            roll_steps = training_module.mcfg.n_opt_steps + (global_step // training_module.mcfg.increase_roll_every)
+            roll_steps = 1 + (global_step // training_module.mcfg.increase_roll_every)
             roll_steps = min(roll_steps, training_module.mcfg.roll_max)
 
         if global_step >= training_module.mcfg.warmup_steps:

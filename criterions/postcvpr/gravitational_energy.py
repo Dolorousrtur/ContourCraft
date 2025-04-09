@@ -26,10 +26,16 @@ class Criterion(nn.Module):
     def forward(self, sample):
         cloth_sample = sample['cloth']
         pred_pos = cloth_sample.pred_pos
+
+
         B = sample.num_graphs
         v_mass = cloth_sample.v_mass
         U = self.g * v_mass[..., 0] * pred_pos[..., self.z_axis]
 
-        loss = U.sum() / B
+        if 'cutout_mask' in sample['cloth']:
+            node_mask = cloth_sample.cutout_mask
+            U = U[node_mask]
 
-        return dict(loss=loss)
+        loss = U.sum() / B * self.weight
+
+        return dict(loss=loss, weight=self.weight)

@@ -5,17 +5,12 @@ experiment:
 runner:
   ccraft:
     warmup_steps: 100
-    n_opt_steps: 1
     increase_roll_every: 5000
     roll_max: 20
     push_eps: 2e-3
     initial_ts: 3.333333333333333e-1
     regular_ts: 3.333333333333333e-2
-    use_restpos_for_strain_tensor: True
-    opposite_edges: False
     grad_clip: 1.
-    random_pin_nobody: False
-    n_random_pin_nobody: 2
     nocollect_after: 2
     no_world_edges_every: 2
     fake_icontour: False
@@ -39,19 +34,19 @@ runner:
       max_ncoll: 2000
       riz_epsilon: 0
 
-dataloader:
-  num_workers: 0
-  batch_size: 1
-  pyg_data: True
-  dataset:
-    from_any_pose:
-      smpl_model: 'body_models/smpl/SMPL_FEMALE.pkl'
-      pose_sequence_type: "smpl"
-      pose_sequence_path: 'fromanypose/pose_sequence.pkl'
-      # pose_sequence_type: "mesh"
-      # pose_sequence_path: 'fromanypose/mesh_sequence.pkl'
-      garment_template_path: 'fromanypose/tshirt.pkl'
-      n_coarse_levels: 4
+dataloaders:
+  inference:
+    num_workers: 0
+    batch_size: 1
+    dataset:
+      from_any_pose:
+        smpl_model: 'body_models/smpl/SMPL_FEMALE.pkl'
+        pose_sequence_type: "smpl"
+        pose_sequence_path: 'fromanypose/pose_sequence.pkl'
+        # pose_sequence_type: "mesh"
+        # pose_sequence_path: 'fromanypose/mesh_sequence.pkl'
+        garment_template_path: 'fromanypose/tshirt.pkl'
+        n_coarse_levels: 4
 
 criterions:
   postcvpr.mataug.stretching_energy:

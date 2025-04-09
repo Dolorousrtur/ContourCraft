@@ -15,40 +15,19 @@ from utils.common import NodeType
 from utils.defaults import DEFAULTS
 
 
-def add_pinned_verts(file, garment_name, pinned_indices):
+def add_pinned_verts(garment_dict_path, pinned_indices):
     """
     Modify `node_type` field in the pickle file to mark pinned vertices with NodeType.HANDLE
-    :param file: path top the garments dict file
-    :param garment_name: name of the garment to add pinned vertices to
+    :param garment_dict_path: path to the garment dict file
     :param pinned_indices: list of pinned vertex indices
     """
-    with open(file, 'rb') as f:
-        pkl = pickle.load(f)
-    node_type = np.zeros_like(pkl[garment_name]['rest_pos'][:, :1])
-    node_type[pinned_indices] = NodeType.HANDLE
-    node_type = node_type.astype(np.int64)
-    pkl[garment_name]['node_type'] = node_type
 
-    with open(file, 'wb') as f:
-        pickle.dump(pkl, f)
-
-
-def add_pinned_verts_single_template(file, pinned_indices):
-    """
-    Modify `node_type` field in the pickle file to mark pinned vertices with NodeType.HANDLE
-    :param file: path top the garments dict file
-    :param garment_name: name of the garment to add pinned vertices to
-    :param pinned_indices: list of pinned vertex indices
-    """
-    with open(file, 'rb') as f:
-        pkl = pickle.load(f)
+    pkl = pickle_load(garment_dict_path)
     node_type = np.zeros_like(pkl['rest_pos'][:, :1])
     node_type[pinned_indices] = NodeType.HANDLE
     node_type = node_type.astype(np.int64)
     pkl['node_type'] = node_type
-
-    with open(file, 'wb') as f:
-        pickle.dump(pkl, f)
+    pickle_dump(pkl, garment_dict_path)
 
 
 def add_buttons(file, button_edges):
@@ -116,10 +95,9 @@ def approximate_graph_center(G):
     return center_vertex
 
 class GarmentCreator:
-    def __init__(self, garments_dict_path, body_models_root, model_type, gender, 
+    def __init__(self, body_models_root, model_type, gender, 
                  collect_lbs=True, n_samples_lbs=0, coarse=True, n_coarse_levels=4, 
                  approximate_center=False, verbose=False, add_uv=False):
-        self.garments_dict_path = garments_dict_path
         self.body_models_root = body_models_root
         self.model_type = model_type
         self.gender = gender
@@ -136,17 +114,6 @@ class GarmentCreator:
         if body_models_root is not None:
             self.body_model = smplx.create(body_models_root, model_type, gender=gender)
 
-
-    def _load_garments_dict(self):
-        if os.path.exists(self.garments_dict_path):
-            garments_dict = pickle_load(self.garments_dict_path)
-        else:
-            garments_dict = {}
-
-        return garments_dict
-    
-    def _save_garments_dict(self, garments_dict):
-        pickle_dump(garments_dict, self.garments_dict_path)   
 
 
     def add_coarse_edges(self, garment_dict):
@@ -315,23 +282,17 @@ class GarmentCreator:
 
         return garment_dict
 
-    def _update_garment_dict(self, garment_dict, garment_name):
-        garments_dict = self._load_garments_dict()
-        garments_dict[garment_name] = garment_dict
-        self._save_garments_dict(garments_dict)
-        if self.verbose:
-            print(f"Garment '{garment_name}' added to {self.garments_dict_path}")
-
-    def add_garment(self, objfile, garment_name):
+    def add_garment(self, objfile, garment_dict_path):
         """
         Add a new garment from a given obj file to the garments_dict_file
 
         :param objfile: path to the obj file with the new garment
-        :param garment_name: name of the new garment
+        :param garment_dict_path: path to the garment dict file to be created
         """
 
         garment_dict = self.make_garment_dict(objfile)
-        self._update_garment_dict(garment_dict, garment_name)
+        pickle_dump(garment_dict, garment_dict_path)
+        print(f'Garment dict saved to {garment_dict_path}')
 
 
 def make_restpos_dict(vertices_full, faces_full):
@@ -358,13 +319,10 @@ def make_restpos_dict(vertices_full, faces_full):
 
 
 def obj2template(obj_path, verbose=False):
-
-    gc = GarmentCreator(None, None, None, None, collect_lbs=False, coarse=True, verbose=verbose)    
+    gc = GarmentCreator(None, None, None, collect_lbs=False, coarse=True, verbose=verbose, approximate_center=True)    
     out_dict = gc.make_garment_dict(obj_path)
 
     return out_dict
-
-
 
 
 

@@ -5,25 +5,16 @@ from munch import munchify
 
 hostname = socket.gethostname()
 
-HOOD_PROJECT = "/home/agrigorev/Workdir/00_Projects/prj4_sandbox/ccraft"
-HOOD_DATA = "/home/agrigorev/Data/01_Projects/hood_public"
-
-if "HOOD_PROJECT" in os.environ:
-    HOOD_PROJECT = os.environ["HOOD_PROJECT"]
-    HOOD_DATA = os.environ["HOOD_DATA"]
-
-os.environ["HOOD_PROJECT"] = HOOD_PROJECT
-os.environ["HOOD_DATA"] = HOOD_DATA
-
 DEFAULTS = dict()
 
-DEFAULTS['server'] = 'local'
-DEFAULTS['data_root'] = HOOD_DATA
-DEFAULTS['experiment_root'] = os.path.join(HOOD_DATA, 'experiments')
-DEFAULTS['vto_root'] = os.path.join(HOOD_DATA, 'vto_dataset')
-DEFAULTS['aux_data'] = os.path.join(HOOD_DATA, 'aux_data')
-DEFAULTS['project_dir'] = HOOD_PROJECT
+DEFAULTS['project_name'] = 'ccraft'
 
 
-DEFAULTS['hostname'] = hostname
+DEFAULTS['CMU_root'] = '/path/to/AMASS/smpl/CMU'
+DEFAULTS['data_root'] = '/path/to/ccraft_data'
+DEFAULTS['aux_data'] = os.path.join(DEFAULTS['data_root'], 'aux_data')
+DEFAULTS['project_dir'] = 'path/to/this/repo'
+DEFAULTS['experiment_root'] = os.path.join(DEFAULTS['data_root'], 'experiments')
+
+
 DEFAULTS = munchify(DEFAULTS)

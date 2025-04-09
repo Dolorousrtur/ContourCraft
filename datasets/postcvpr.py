@@ -21,14 +21,14 @@ from utils.io import pickle_load
 
 @dataclass
 class Config:
-    garment_dict_file: str = MISSING  # Path to the garment dict file with data for all garments relative to $HOOD_DATA/aux_data/
-    data_root: str = MISSING  # Path to the data root relative to $HOOD_DATA/
-    body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $HOOD_DATA/aux_data/
+    garment_dict_file: str = MISSING  # Path to the garment dict file with data for all garments relative to $DEFAULTS.data_root/aux_data/
+    data_root: str = MISSING  # Path to the data root relative to $DEFAULTS.data_root/
+    body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $DEFAULTS.data_root/aux_data/
     model_type: str = 'smpl'  # Type of the body model ('smpl' or 'smplx')
     gender: str = 'female' # Gender of the body model ('male' | 'female' | 'neutral')    
-    split_path: Optional[str] = None  # Path to the .csv split file relative to $HOOD_DATA/aux_data/
+    split_path: Optional[str] = None  # Path to the .csv split file relative to $DEFAULTS.data_root/aux_data/
     obstacle_dict_file: Optional[
-        str] = None  # Path to the file with auxiliary data for obstacles relative to $HOOD_DATA/aux_data/
+        str] = None  # Path to the file with auxiliary data for obstacles relative to $DEFAULTS.data_root/aux_data/
     
 
     sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 

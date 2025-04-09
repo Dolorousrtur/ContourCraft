@@ -1,7 +1,9 @@
+from pathlib import Path
 import pickle
 from typing import Dict
 
 import torch
+import smplx
 from smplx import SMPL
 
 from utils.garment_smpl import GarmentSMPL
@@ -54,3 +56,11 @@ def make_fromanypose_dataloader(pose_sequence_type, pose_sequence_path, garment_
     dataloader = DataloaderModule(dataset, dataloader_config).create_dataloader()
     return dataloader
 
+def build_smpl_bygender(smpl_root, model_type='smpl', use_pca=False):
+    smpl_root = Path(smpl_root)
+    smpl_model_dict = {}
+
+    for gender in ['male', 'female', 'neutral']:
+        smpl_model_dict[gender] = smplx.create(smpl_root, model_type=model_type, gender=gender, use_pca=use_pca)
+    
+    return smpl_model_dict

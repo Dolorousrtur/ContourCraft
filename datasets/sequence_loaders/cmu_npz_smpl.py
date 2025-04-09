@@ -64,6 +64,8 @@ class SequenceLoader:
         for k in ['global_orient', 'body_pose', 'transl']:
             sequence[k] = sequence[k][::skip_every]
 
+        sequence['subsample'] = skip_every
+
         return sequence
 
     def load_sequence(self, fname: str, betas_id: int=None) -> dict:

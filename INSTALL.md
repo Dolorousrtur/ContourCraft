@@ -1,6 +1,6 @@
 # Installation instructions
 
-To run contourCraft you'll need to, first, set up the environment and, second, download required data. Here we descrime both these steps.
+To run ContourCraft you'll need to, first, set up the environment and, second, download required data. Here we describe both these steps.
 
 ## Set up the environment
 
@@ -109,43 +109,46 @@ pip install .
 
 ## Download data
 
-### HOOD data
-Download the auxiliary data for HOOD using this [link](https://drive.google.com/file/d/1RdA4L6Fy50VsKZ8k7ySp5ps5YtWoHSgs/view?usp=sharing).
-Unpack it anywhere you want and set the `HOOD_DATA` environmental variable to the path of the unpacked folder.
-Also, set the `HOOD_PROJECT` environmental variable to the path you cloned this repository to:
-
-```bash
-export HOOD_DATA=/path/to/hood_data
-export HOOD_PROJECT=/path/to/this/repository
+### ContourCraft data
+Download the auxiliary data for ContourCraft using this [link](https://drive.google.com/file/d/1NfxAeaC2va8TWMjiO_gbAcVPnZ8BYFPD/view?usp=sharing).
+Unpack it anywhere you want and set the `DEFAULTS.data_root` variable in `defaults.py` to the path of the unpacked folder:
+```python
+DEFAULTS['data_root'] = '/path/to/ccraft_data'
 ```
+
+Also, set the `DEFAULTS.project_dir` environmental variable to the path you cloned this repository to:
+```python
+DEFAULTS['project_dir'] = '/path/to/this/repository'
+```
+
 
 ### SMPL(-X) models
-Download the SMPL models using this [link](https://smpl.is.tue.mpg.de/). Unpack them into the `$HOOD_DATA/aux_data/body_models/smpl` folder.
 
-If you want to use SMPL-X models, [download them](https://smpl-x.is.tue.mpg.de/) and unpack into `$HOOD_DATA/aux_data/body_models/smplx`.
+Download the SMPL-X models using this [link](https://smpl-x.is.tue.mpg.de/). Unpack them into the `DEFAULTS.data_root/aux_data/body_models/smplx` folder. For our experiments we used SMPL-X v1.1.
 
-In the end your `$HOOD_DATA` folder should look like this:
+If you want to use SMPL models, [download them](https://smpl.is.tue.mpg.de/) and unpack into `DEFAULTS.data_root/aux_data/body_models/smpl/`. In our experiments we used SMPL of version  1.0.0 (female/male. 10 shape PCs). You'll need to rename the model files from `basicModel_*_lbs_10_207_0_v1.0.0.pkl` to `SMPL_FEMALE.pkl` and `SMPL_MALE.pkl`
+
+In the end your `DEFAULTS.data_root` folder should look like this:
 ```
-$HOOD_DATA
+DEFAULTS.data_root
     |-- aux_data
         |-- datasplits // directory with csv data splits used for training the model
         |-- body_models
           |-- smpl // directory with smpl models
-            |-- SMPL_NEUTRAL.pkl
             |-- SMPL_FEMALE.pkl
             |-- SMPL_MALE.pkl
           |-- smplx // directory with smplx models
             |-- SMPLX_NEUTRAL.pkl
             |-- SMPLX_FEMALE.pkl
             |-- SMPLX_MALE.pkl
-        |-- garment_meshes // folder with .obj meshes for garments used in HOOD
-        |-- garments_dict.pkl // dictionary with garmentmeshes and their auxilliary data used for training and inference
+        |-- garment_dicts // folder with .pkl meshes for garment dictionaries use for simulation
+        |-- garment_meshes // folder with .obj meshes for garments
         |-- smpl_aux.pkl // dictionary with indices of SMPL vertices that correspond to hands, used to disable hands during inference to avoid body self-intersections
-    |-- trained_models // directory with trained HOOD models
-        |-- cvpr_submission.pth // model used in the CVPR paper
-        |-- postcvpr.pth // model trained with refactored code with several bug fixes after the CVPR submission
-        |-- fine15.pth // baseline model without denoted as "Fine15" in the paper (15 message-passing steps, no long-range edges)
-        |-- fine48.pth // baseline model without denoted as "Fine48" in the paper (48 message-passing steps, no long-range edges)
+    |-- trained_models // directory with trained models
+        |-- hood_cvpr.pth // HOOD model used in the CVPR paper
+        |-- hood_final.pth // HOOD model trained with refactored code with several bug fixes after the CVPR submission
+        |-- contourcraft.pth // ContourCraft model used in the SIGGRAPH paper
+    |-- fromanypose // example data to run simulation over a mesh sequence (used in the Inference_from_mesh_sequence.ipynb) 
 ```
 ## Troubleshooting
 
