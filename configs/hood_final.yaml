@@ -20,24 +20,25 @@ runner:
       density_min: 4.34e-2
       density_max: 7e-1
 
-dataloader:
-  num_workers: 0
-  batch_size: 1
-  dataset:
-    postcvpr:
-      data_root: 'vto_dataset/smpl_parameters'
-      body_model_root: 'body_models'
-      model_type: 'smpl'
-      gender: 'female'
-      garment_dict_file: 'garments_dict.pkl'
-      obstacle_dict_file: 'smpl_aux.pkl'
-      split_path: 'datasplits/train.csv'
-      pinned_verts: True
-      random_betas: False
-      n_coarse_levels: 4
-      separate_arms: True
-      wholeseq: True
-      noise_scale: 0
+dataloaders:
+  inference:
+    num_workers: 0
+    batch_size: 1
+    dataset:
+      postcvpr:
+        data_root: 'vto_dataset/smpl_parameters'
+        body_model_root: 'body_models'
+        model_type: 'smpl'
+        gender: 'female'
+        garment_dict_file: 'garments_dict.pkl'
+        obstacle_dict_file: 'smpl_aux.pkl'
+        split_path: 'datasplits/train.csv'
+        pinned_verts: True
+        random_betas: False
+        n_coarse_levels: 4
+        separate_arms: True
+        wholeseq: True
+        noise_scale: 0
 
 criterions:
   postcvpr.mataug.stretching_energy:
