@@ -30,7 +30,7 @@ To run inference starting from arbitrary garment pose and arbitrary mesh sequenc
 
 
 ## Training
-Follow the instructions in [INSTALL.md](INSTALL.md) to train a ContourCraft model from scratch.
+Follow the instructions in [TRAINING.md](TRAINING.md) to train a ContourCraft model from scratch.
 
 ## Repository structure
 The repository structure closely follows the repository for HOOD. Please see [RepoIntro.md](https://github.com/Dolorousrtur/HOOD/blob/main/RepoIntro.md)  in the HOOD repository for more details.
