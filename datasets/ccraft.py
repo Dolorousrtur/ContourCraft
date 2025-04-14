@@ -60,6 +60,8 @@ class Config:
     nobody_freq: float = 0.
     fps: int = 30  # Target FPS for the sequence
 
+    n_frames: int = 100  # (used for if sequence_loader is "cmu_npz_smplx_zeropos") Number of frames in the sequence
+
 def make_obstacle_dict(mcfg: Config) -> dict:
     if mcfg.obstacle_dict_file is None:
         return {}
@@ -80,9 +82,9 @@ def create_loader(mcfg: Config):
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smpl':
+    elif 'smpl' in mcfg.sequence_loader == 'cmu_npz_':
         mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smplx':
+    elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
 
     # body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
@@ -107,7 +109,7 @@ def create_loader(mcfg: Config):
 def create(mcfg: Config):
     loader = create_loader(mcfg)
 
-    if mcfg.single_sequence_file is not None:
+    if mcfg.single_sequence_file is not None or mcfg.single_sequence_garment is not None:
         datasplit = pd.DataFrame()
         datasplit['id'] = [mcfg.single_sequence_file]
         datasplit['garment'] = [mcfg.single_sequence_garment]
@@ -852,15 +854,12 @@ class Loader:
     Class for building HeteroData objects containing all data for a single sample
     """
 
-    # def __init__(self, mcfg: Config, garments_dict: dict, smpl_model: SMPL,
-                #  garment_smpl_model_dict: Dict[str, GarmentSMPL], obstacle_dict: dict, betas_table=None):
     def __init__(self, mcfg: Config, body_models_dict: dict, garment_dicts_dir: str, obstacle_dict: dict, betas_table=None):
         
         sequence_loader_module = importlib.import_module(f'datasets.sequence_loaders.{mcfg.sequence_loader}')
         SequenceLoader = sequence_loader_module.SequenceLoader
 
         self.sequence_loader = SequenceLoader(mcfg, mcfg.data_root, betas_table=betas_table)
-        # self.garment_builder = GarmentBuilder(mcfg, garments_dict, garment_smpl_model_dict)
         self.garment_builder = GarmentBuilder(mcfg, body_models_dict, garment_dicts_dir)
         self.body_builder = BodyBuilder(mcfg, body_models_dict, obstacle_dict)
 
@@ -877,7 +876,7 @@ class Loader:
         :param betas_id: index of the beta parameters in self.betas_table (only used to generate validation sequences when comparing to snug/ssch)
         :return: HelteroData object (see BodyBuilder.build and GarmentBuilder.build for details)
         """
-        sequence = self.sequence_loader.load_sequence(fname, betas_id=betas_id)
+        sequence = self.sequence_loader.load_sequence(fname=fname, betas_id=betas_id)
 
         idx = idx // sequence['subsample']
 

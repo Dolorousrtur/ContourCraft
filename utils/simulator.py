@@ -41,31 +41,30 @@ class Simulator:
         return trajectories_dict
 
 
-    def run(self, sequence_path, garment_dict_file, garment_name, n_steps=-1, **kwargs):
-        dataloader = create_postcvpr_one_sequence_dataloader(sequence_path, garment_name, 
-                                                    garment_dict_file, sequence_loader=self.sequence_loader, 
-                                                    obstacle_dict_file=None, **kwargs)
+    # def run(self, sequence_path, garment_dict_file, garment_name, n_steps=-1, **kwargs):
+    #     dataloader = create_postcvpr_one_sequence_dataloader(sequence_path, garment_name, 
+    #                                                 garment_dict_file, sequence_loader=self.sequence_loader, 
+    #                                                 obstacle_dict_file=None, **kwargs)
         
-        sample = next(iter(dataloader))
+    #     sample = next(iter(dataloader))
 
 
-        trajectories_dict = self._run_sequence(sample, n_steps)
+    #     trajectories_dict = self._run_sequence(sample, n_steps)
 
-        return trajectories_dict
+    #     return trajectories_dict
     
-    def _create_zeropos_sample(self, garment_dict_file, garment_name, n_frames=200, **kwargs):
+    def _create_zeropos_sample(self, garment_name, n_frames=200, **kwargs):
         
-        config = 'contourcraft'
-        dataloader = create_one_sequence_dataloader(use_config=config, data_root=None, single_sequence_file=None,
-                                                    single_sequence_garment=garment_name, garment_dict_file=garment_dict_file,
-                                                    sequence_loader='cmu_npz_smplx_zeropos', n_frames=n_frames, 
-                                                    single_sequence=True, **kwargs)
+        config = 'aux/untangle'
+        dataloader = create_one_sequence_dataloader(use_config=config, data_root='', single_sequence_file=None,
+                                                    single_sequence_garment=garment_name,
+                                                    sequence_loader='cmu_npz_smplx_zeropos', n_frames=n_frames, **kwargs)
 
         sample = next(iter(dataloader))
         return sample
     
-    def run_zeropos(self, garment_dict_file, garment_name, n_steps=200):
-        sample = self._create_zeropos_sample(garment_dict_file, garment_name, n_steps)
+    def run_zeropos(self, garment_name, n_steps=200, gender='female'):
+        sample = self._create_zeropos_sample(garment_name, n_steps, gender=gender)
 
 
         trajectories_dict = self._run_sequence(sample)

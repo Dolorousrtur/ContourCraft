@@ -8,7 +8,7 @@ from utils.common import separate_arms
 
 
 class SequenceLoader():
-    def __init__(self, mcfg, **kwargs):
+    def __init__(self, mcfg, data_root, **kwargs):
         self.mcfg = mcfg
 
         if mcfg.model_type != 'smplx':
@@ -42,6 +42,8 @@ class SequenceLoader():
         sequence['reye_pose'] = np.zeros((N, 3))
         sequence['betas'] = np.zeros(10)
         sequence['expression'] = np.zeros(10)
+
+        sequence['subsample'] = 1
 
         return sequence
     
