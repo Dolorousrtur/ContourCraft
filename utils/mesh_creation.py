@@ -9,7 +9,7 @@ import trimesh
 from sklearn import neighbors
 from tqdm import tqdm
 
-from utils.io import load_obj, pickle_dump, pickle_load
+from utils.io import load_obj, pickle_dump, pickle_load, save_obj
 from utils.coarse import make_graph_from_faces, make_coarse_edges
 from utils.common import NodeType
 from utils.defaults import DEFAULTS
@@ -186,7 +186,6 @@ class GarmentCreator:
 
         body_verts_rest_pose = self.body_model().vertices[0].detach().cpu().numpy()
         n_samples = self.n_lbs_samples
-
 
         body_verts_tree = neighbors.KDTree(body_verts_rest_pose)
         distances, nn_list = body_verts_tree.query(garment_template_verts)
