@@ -26,11 +26,11 @@ import warp as wp
 
 
 class Untangler:
-    def __init__(self, garment_creator, checkpoint_path, n_epochs=2, n_steps_per_epoch=30, gender='female', use_uv=False, **kwargs):
+    def __init__(self, garment_creator, checkpoint_path, n_epochs=2, n_steps_per_stage=30, gender='female', use_uv=False, **kwargs):
         self.simulator = Simulator(checkpoint_path)
         # self.garment_dict_file = Path(garment_dict_file)
         self.n_epochs = n_epochs
-        self.n_steps_per_epoch = n_steps_per_epoch
+        self.n_steps_per_epoch = n_steps_per_stage
         self.gender = gender
         self.use_uv = use_uv
         self.data_kwargs = kwargs
@@ -42,7 +42,7 @@ class Untangler:
         if trajectories_list is None:
             trajectories_list = []
         for i in range(self.n_epochs):
-            print(f'Untangling {new_garment} with {inner_garments} ({i+1}/{self.n_epochs})')
+            print(f'\nUntangling {new_garment} with {inner_garments} ({i+1}/{self.n_epochs})')
             print(f'Simulating inner garments as obstacles...')
             # new_sample = untanglement.make_sample(inner_garments, [new_garment], n_steps=30)
             new_sample = untanglement.make_sample(inner_garments, [new_garment], n_steps=self.n_steps_per_epoch)
@@ -112,11 +112,19 @@ class Untanglement:
             new_lbs_dict = garment_creator.make_lbs_dict(new_verts, faces)
             garment_dict['lbs'] = new_lbs_dict
 
-            out_path = Path(DEFAULTS.aux_data) / 'garment_dicts' / outfit_name / f'{garment_name}.pkl'
+            out_path = original_garments_root / outfit_name / f'{garment_name}.pkl'
             out_path.parent.mkdir(parents=True, exist_ok=True)
             pickle_dump(garment_dict, out_path)
 
             print(f'Saving the untangled version of {garment_name} to {out_path}')
+
+        gnames_w_outfit = [f"{outfit_name}/{gn}" for gn in self.garment_names]
+        gnames_w_outfit_str = ','.join(gnames_w_outfit)
+
+        print(f'\nYou can now simulate the outfit with either:\n'
+                f'garment_name="{gnames_w_outfit_str}"\n'
+                f'or simply:\n'
+                f'garment_name="{outfit_name}"\n')
 
     def _build_body_dict(self, sample):
         body_dict = dict()

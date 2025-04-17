@@ -112,3 +112,13 @@ def pose_garment(
     verts = v_homo[:, :, :3, 0]
 
     return verts, J_transformed
+
+
+def makeT(lbs_weights, J_transformed, joint_transforms, batch_size):
+    A = joint_transforms
+    W = lbs_weights.unsqueeze(dim=0).expand([batch_size, -1, -1])
+    num_joints = J_transformed.shape[1]
+    T = torch.matmul(W, A.view(batch_size, num_joints, 16)) \
+        .view(batch_size, -1, 4, 4)
+    
+    return T

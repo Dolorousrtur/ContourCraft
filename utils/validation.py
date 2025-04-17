@@ -54,7 +54,6 @@ def load_runner_from_checkpoint(checkpoint_path: str, modules: dict, experiment_
     """
     runner_module, runner, _ = create_runner(modules, experiment_config,
                                              create_aux_modules=False)
-
     sd = torch.load(checkpoint_path)
 
     sd = sd['training_module']
@@ -97,6 +96,7 @@ def create_postcvpr_one_sequence_dataloader(sequence_path: str, garment_name: st
 
     if config is None:
         config = 'contourcraft'
+
 
     dataloader = create_one_sequence_dataloader(use_config=config, data_root=data_root, single_sequence_file=file_name,
                                             single_sequence_garment=garment_name,

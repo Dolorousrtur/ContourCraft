@@ -1,5 +1,6 @@
 import itertools
 import os
+from pathlib import Path
 import pickle
 
 import networkx as nx
@@ -8,11 +9,16 @@ import smplx
 import trimesh
 from sklearn import neighbors
 from tqdm import tqdm
+import torch
 
 from utils.io import load_obj, pickle_dump, pickle_load, save_obj
 from utils.coarse import make_graph_from_faces, make_coarse_edges
 from utils.common import NodeType
 from utils.defaults import DEFAULTS
+from utils.lbs import makeT
+from utils import lbs as my_lbs
+from smplx.lbs import blend_shapes
+from utils.simulator import Simulator
 
 
 def add_pinned_verts(garment_dict_path, pinned_indices):
@@ -55,15 +61,14 @@ def sample_skinningweights(points, smpl_tree, sigmas, smpl_model):
     """
     noise = np.random.randn(*points.shape)
     points_sampled = noise * sigmas + points
-
     _, nn_list = smpl_tree.query(points_sampled)
     nn_inds = nn_list[..., 0]
 
-    garment_shapedirs = smpl_model.shapedirs[nn_inds].numpy()
+    garment_shapedirs = smpl_model.shapedirs[nn_inds].cpu().numpy()
 
     N = smpl_model.posedirs.shape[0]
-    garment_posedirs = smpl_model.posedirs.reshape(N, -1, 3)[:, nn_inds].reshape(N, -1).numpy()
-    garment_lbs_weights = smpl_model.lbs_weights[nn_inds].numpy()
+    garment_posedirs = smpl_model.posedirs.reshape(N, -1, 3)[:, nn_inds].reshape(N, -1).cpu().numpy()
+    garment_lbs_weights = smpl_model.lbs_weights[nn_inds].cpu().numpy()
 
     return garment_shapedirs, garment_posedirs, garment_lbs_weights
 
@@ -95,9 +100,11 @@ def approximate_graph_center(G):
     return center_vertex
 
 class GarmentCreator:
-    def __init__(self, body_models_root, model_type, gender, 
+    def __init__(self, garment_dicts_dir, body_models_root, model_type, gender, 
                  collect_lbs=True, n_samples_lbs=0, coarse=True, n_coarse_levels=4, 
                  approximate_center=False, verbose=False, add_uv=False):
+        
+        self.garment_dicts_dir = garment_dicts_dir
         self.body_models_root = body_models_root
         self.model_type = model_type
         self.gender = gender
@@ -112,7 +119,7 @@ class GarmentCreator:
         self.approximate_center = approximate_center
 
         if body_models_root is not None:
-            self.body_model = smplx.create(body_models_root, model_type, gender=gender)
+            self.body_model = smplx.create(body_models_root, model_type, gender=gender, use_pca=False)
 
 
 
@@ -173,8 +180,6 @@ class GarmentCreator:
 
         return garment_dict
 
-
-
     def make_lbs_dict(self, garment_template_verts, garment_faces):
         """
         Collect linear blend skinning weights for a garment mesh
@@ -196,9 +201,9 @@ class GarmentCreator:
 
         if n_samples == 0:
             # Take weights of the closest SMPL vertex
-            garment_shapedirs = self.body_model.shapedirs[nn_inds].numpy()
-            garment_posedirs = self.body_model.posedirs.reshape(n_posedirs, -1, 3)[:, nn_inds].reshape(n_posedirs, -1).numpy()
-            garment_lbs_weights = self.body_model.lbs_weights[nn_inds].numpy()
+            garment_shapedirs = self.body_model.shapedirs[nn_inds].cpu().numpy()
+            garment_posedirs = self.body_model.posedirs.reshape(n_posedirs, -1, 3)[:, nn_inds].reshape(n_posedirs, -1).cpu().numpy()
+            garment_lbs_weights = self.body_model.lbs_weights[nn_inds].cpu().numpy()
         else:
             garment_shapedirs = 0
             garment_posedirs = 0
@@ -271,17 +276,24 @@ class GarmentCreator:
 
         return garment_dict
 
-    def make_garment_dict(self, obj_file):
+    def make_garment_dict(self, obj_file, rest_pos_objfile=None):
         """
         Create a dictionary for a garment from an obj file
         """
 
         obj_dict = self._load_from_obj(obj_file)
-        garment_dict = self._make_garment_dict_from_verts(obj_dict)
+
+        vertices_canonical = None
+        if rest_pos_objfile is not None:
+            rest_pos_obj_dict = self._load_from_obj(rest_pos_objfile)
+            vertices_canonical = rest_pos_obj_dict['vertices']
+
+        garment_dict = self._make_garment_dict_from_verts(obj_dict, 
+                                                          vertices_canonical=vertices_canonical)
 
         return garment_dict
 
-    def add_garment(self, objfile, garment_dict_path):
+    def add_garment(self, objfile, garment_dict_path, rest_pos_objfile=None):
         """
         Add a new garment from a given obj file to the garments_dict_file
 
@@ -289,10 +301,143 @@ class GarmentCreator:
         :param garment_dict_path: path to the garment dict file to be created
         """
 
-        garment_dict = self.make_garment_dict(objfile)
+        garment_dict = self.make_garment_dict(objfile, rest_pos_objfile=rest_pos_objfile)
         pickle_dump(garment_dict, garment_dict_path)
         print(f'Garment dict saved to {garment_dict_path}')
 
+
+    def add_posed_garment(self, objfile, garment_name, body_params_file, checkpoint_path, n_relaxation_steps=30):
+        garment_dict_path = Path(self.garment_dicts_dir) / f'{garment_name}.pkl'
+        obj_dict = self._load_from_obj(objfile)
+
+        body_params_dict = pickle_load(body_params_file)
+
+        vertices_posed = obj_dict['vertices']
+        vertices_unposed = self.unpose_garment(vertices_posed, body_params_dict)
+
+        obj_dict['vertices'] = vertices_unposed
+        garment_dict = self._make_garment_dict_from_verts(obj_dict, vertices_canonical=vertices_posed)
+
+        pickle_dump(garment_dict, garment_dict_path)
+
+
+        print("Relaxing the garment to remove unposing artifacts...")
+        trajectories_dict = self.relax_zeropos(garment_name, checkpoint_path, n_steps=n_relaxation_steps)
+        print(f'Garment dict saved to {garment_dict_path}')
+
+        return trajectories_dict
+
+
+    def relax_zeropos(self, garment_name, checkpoint_path, n_steps=30):
+
+        sequence_loader = 'cmu_npz_smplx_zeropos' if self.model_type == 'smplx' else 'cmu_npz_smpl_zeropos'
+        simulator = Simulator(checkpoint_path, sequence_loader=sequence_loader)
+
+        trajectories_dict = simulator.run_zeropos(garment_name, n_steps=n_steps, gender=self.gender,
+                                                   garment_dicts_dir=self.garment_dicts_dir)
+        relaxed_verts = trajectories_dict['pred'][-1]
+
+        garment_dict_path = Path(self.garment_dicts_dir) / f'{garment_name}.pkl'
+        garment_dict = pickle_load(garment_dict_path)
+
+        faces = garment_dict['faces']
+        garment_dict['lbs'] = self.make_lbs_dict(relaxed_verts, faces)
+
+        pickle_dump(garment_dict, garment_dict_path)
+
+        return trajectories_dict
+
+    def unpose_garment(self, garment_verts, smplx_dict):
+
+        smplx_dict_pt = {k: torch.tensor(v).float().cuda() for k, v in smplx_dict.items()}
+        body_model = self.body_model.cuda()
+
+        body_verts = body_model(**smplx_dict_pt).vertices[0]
+        body_verts = body_verts.detach().cpu().numpy()
+
+
+
+        r_permute = np.array([[1,0,0],
+                [0,0,-1],
+                [0,1,0]], dtype=body_verts.dtype)
+        # body_verts = body_verts @ r_permute
+        garment_verts = garment_verts @ r_permute.T
+
+        garment_verts = garment_verts - smplx_dict['transl']
+        body_verts = body_verts -  smplx_dict['transl']
+
+        smpl_tree = neighbors.KDTree(body_verts)
+        distances, nn_list = smpl_tree.query(garment_verts)
+
+        out_temp_bory = '/data/agrigorev/02_Projects/ccraft_data/examples/unpose/smpl_body_temp.obj'
+        save_obj(out_temp_bory, body_verts, body_model.faces)
+
+        n_samples = self.n_lbs_samples
+        if n_samples == 0:
+            garment_shapedirs, garment_posedirs, garment_lbs_weights = sample_skinningweights(
+                    garment_verts, smpl_tree, distances * 0, body_model)
+
+            garment_shapedirs = torch.tensor(garment_shapedirs)
+            garment_posedirs = torch.tensor(garment_posedirs)
+            garment_lbs_weights = torch.tensor(garment_lbs_weights)
+        else:
+            garment_shapedirs = 0
+            garment_posedirs = 0
+            garment_lbs_weights = 0
+            for i in tqdm(range(n_samples)):
+                garment_shapedirs_sampled, garment_posedirs_sampled, garment_lbs_weights_sampled = sample_skinningweights(
+                    garment_verts, smpl_tree, distances ** 0.5, body_model)
+                garment_shapedirs += garment_shapedirs_sampled
+                garment_posedirs += garment_posedirs_sampled
+                garment_lbs_weights += garment_lbs_weights_sampled
+            garment_shapedirs = torch.tensor(garment_shapedirs / n_samples)
+            garment_posedirs = torch.tensor(garment_posedirs / n_samples)
+            garment_lbs_weights = torch.tensor(garment_lbs_weights / n_samples)
+
+
+        betas = smplx_dict['betas'][:, :10]
+        betas = torch.tensor(betas).cuda().float()
+
+        full_pose_list = []
+        model_type = self.model_type
+        if model_type == 'smplx':
+            param_list = ['global_orient', 'body_pose', 'jaw_pose', 'leye_pose', 'reye_pose', 'left_hand_pose', 'right_hand_pose']
+        elif model_type == 'smpl':
+            param_list = ['global_orient', 'body_pose']
+        else:
+            raise ValueError(f'Unknown model type {model_type}')
+
+
+        for k in param_list:
+            full_pose_list.append(smplx_dict[k])
+        full_pose = np.concatenate(full_pose_list, axis=1)
+        full_pose = torch.tensor(full_pose).cuda().float()
+
+
+        J_transformed, joint_transforms = my_lbs.get_transformed_joints(betas.cuda(), full_pose.cuda(), body_model.v_template.cuda(),
+                                                                        body_model.shapedirs.cuda(),
+                                                                        body_model.J_regressor.cuda(),
+                                                                        body_model.parents.cuda())
+
+        T = makeT(garment_lbs_weights.cuda(), J_transformed.cuda(), joint_transforms.cuda(), 1)[:, :, :3]
+
+        garment_vertices_pt = torch.tensor(garment_verts).cuda().float()
+
+        N = T.shape[1]
+        ones = torch.ones(1, N, 1, 1).cuda()
+        homo_delta = torch.matmul(T[..., -1:], ones)
+        garment_vertices_md = garment_vertices_pt - homo_delta[0,...,0]
+
+        T3 = T[..., :3]
+        T3_inv = torch.inverse(T3)
+
+
+
+        garment_vertices_unposed = torch.matmul(T3_inv, garment_vertices_md.unsqueeze(-1))[0, ..., 0]
+        bs = blend_shapes(betas, garment_shapedirs.cuda())[0].detach()
+        g_verts_unshaped = garment_vertices_unposed - bs
+
+        return g_verts_unshaped.cpu().numpy()
 
 def make_restpos_dict(vertices_full, faces_full):
     """
@@ -381,3 +526,34 @@ def add_coarse_edges(garment_dict, n_coarse_levels=4, approximate_center=True):
     garment_dict['coarse_edges'] = coarse_edges_dict
 
     return garment_dict
+
+
+
+
+def create_smpl_pose_file(source_sequence_file, out_path, index):
+    smpl_sequence = dict(np.load(source_sequence_file, allow_pickle=True))
+    new_dict = {}
+
+    new_dict['betas'] = smpl_sequence['betas'][None, :10]
+    new_dict['transl'] = smpl_sequence['trans'][index:index+1]
+    new_dict['global_orient'] = smpl_sequence['poses'][index:index+1, :3]
+    new_dict['body_pose'] = smpl_sequence['poses'][index:index+1, 3:72]
+
+    pickle_dump(new_dict, out_path)
+
+def create_smplx_pose_file(source_sequence_file, out_path, index):
+    smplx_sequence = dict(np.load(source_sequence_file, allow_pickle=True))
+    new_dict = {}
+    new_dict['betas'] = smplx_sequence['betas'][None, :10]
+
+    new_dict['transl'] = smplx_sequence['trans'][index:index+1]
+    new_dict['global_orient'] = smplx_sequence['root_orient'][index:index+1]
+    new_dict['body_pose'] = smplx_sequence['pose_body'][index:index+1]
+    new_dict['jaw_pose'] = smplx_sequence['pose_jaw'][index:index+1]
+    new_dict['left_hand_pose'] = smplx_sequence['pose_hand'][index:index+1, :45]
+    new_dict['right_hand_pose'] = smplx_sequence['pose_hand'][index:index+1, 45:]
+    new_dict['leye_pose'] = smplx_sequence['pose_eye'][index:index+1, :3]
+    new_dict['reye_pose'] = smplx_sequence['pose_eye'][index:index+1, 3:6]
+
+    pickle_dump(new_dict, out_path)
+

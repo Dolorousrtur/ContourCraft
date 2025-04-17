@@ -2,6 +2,7 @@
 from functools import partial
 import importlib
 import os
+from pathlib import Path
 import pickle
 from dataclasses import dataclass, MISSING
 from random import random
@@ -74,11 +75,11 @@ def make_obstacle_dict(mcfg: Config) -> dict:
 
 def create_loader(mcfg: Config):
     # garment_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.garment_dict_file)
-    garment_dict_dir = os.path.join(DEFAULTS.aux_data, mcfg.garment_dicts_dir)
+    garment_dict_dir = Path(DEFAULTS.aux_data) / mcfg.garment_dicts_dir
 
     # garments_dict = load_garments_dict(garment_dict_path)
 
-    body_model_root = os.path.join(DEFAULTS.aux_data, mcfg.body_model_root)
+    body_model_root = Path(DEFAULTS.aux_data) / mcfg.body_model_root
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
@@ -94,10 +95,10 @@ def create_loader(mcfg: Config):
     obstacle_dict = make_obstacle_dict(mcfg)
 
     if mcfg.single_sequence_file is None:
-        mcfg.data_root = os.path.join(DEFAULTS.CMU_root, mcfg.data_root)
+        mcfg.data_root = Path(DEFAULTS.CMU_root) / mcfg.data_root
 
     if mcfg.betas_file is not None:
-        betas_table = pickle_load(os.path.join(DEFAULTS.aux_data, mcfg.betas_file))['betas']
+        betas_table = pickle_load(Path(DEFAULTS.aux_data) / mcfg.betas_file)['betas']
     else:
         betas_table = None
 
@@ -110,9 +111,21 @@ def create(mcfg: Config):
     loader = create_loader(mcfg)
 
     if mcfg.single_sequence_file is not None or mcfg.single_sequence_garment is not None:
+
+        garment_dicts_dir = Path(DEFAULTS.aux_data) / mcfg.garment_dicts_dir
+        garment_path = garment_dicts_dir / mcfg.single_sequence_garment
+        if garment_path.is_dir():
+            garment_files = garment_path.glob('*.pkl')
+            garment_files = [gf.relative_to(garment_dicts_dir).with_suffix('') for gf in garment_files]
+            garment_files = [str(gf) for gf in garment_files]
+            garment_name = ','.join(garment_files)
+        else:
+            garment_name = mcfg.single_sequence_garment
+
+
         datasplit = pd.DataFrame()
         datasplit['id'] = [mcfg.single_sequence_file]
-        datasplit['garment'] = [mcfg.single_sequence_garment]
+        datasplit['garment'] = [garment_name]
         datasplit['gender'] = [mcfg.gender]
     else:
         split_path = os.path.join(DEFAULTS.aux_data, mcfg.split_path)
