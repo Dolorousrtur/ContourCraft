@@ -19,10 +19,6 @@ import torch
 import os
 import warp as wp
 
-# from ccraft.datasets.zeropos_init import Config as DatasetConfig
-# from ccraft.datasets.zeropos_init import create as create_dataset
-# from ccraft.utils.dataloader import DataloaderModule
-
 
 
 class Untangler:
@@ -36,7 +32,6 @@ class Untangler:
         self.data_kwargs = kwargs
 
         self.garment_creator = garment_creator
-        self.gc = GarmentCreator(None, None, None, collect_lbs=False, coarse=True, verbose=False)   
 
     def untangle_single(self, untanglement, inner_garments, new_garment, trajectories_list=None):
         if trajectories_list is None:

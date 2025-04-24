@@ -116,7 +116,7 @@ Unpack it anywhere you want and set the `DEFAULTS.data_root` variable in `defaul
 DEFAULTS['data_root'] = '/path/to/ccraft_data'
 ```
 
-Also, set the `DEFAULTS.project_dir` environmental variable to the path you cloned this repository to:
+Also, set the `DEFAULTS.project_dir` variable to the path you cloned this repository to:
 ```python
 DEFAULTS['project_dir'] = '/path/to/this/repository'
 ```
@@ -148,12 +148,14 @@ DEFAULTS.data_root
         |-- hood_cvpr.pth // HOOD model used in the CVPR paper
         |-- hood_final.pth // HOOD model trained with refactored code with several bug fixes after the CVPR submission
         |-- contourcraft.pth // ContourCraft model used in the SIGGRAPH paper
-    |-- fromanypose // example data to run simulation over a mesh sequence (used in the Inference_from_mesh_sequence.ipynb) 
+    |-- examples
+        |-- fromanypose  // example data to run simulation over a mesh sequence (used in the Inference_from_mesh_sequence.ipynb) 
+        |-- unpose // example data for unposing germents (used in GarmentImport.ipynb)
 ```
 ## Troubleshooting
 
 ### Installing pytorch3d
-Errors happening when running `pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"`
+Potential errors happening while running `pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"`
 
 **Error**:
 

@@ -101,7 +101,7 @@ class GarmentBuilder:
         self.garment_dict = garment_dict
         self.vertex_builder = VertexBuilder(mcfg)
 
-        self.gc = GarmentCreator(None, None, None, collect_lbs=False, coarse=True, verbose=False)    
+        self.gc = GarmentCreator(None, None, None, None, collect_lbs=False, coarse=True, verbose=False)    
 
     def add_verts(self, sample: HeteroData, garment_dict: dict) -> HeteroData:
 

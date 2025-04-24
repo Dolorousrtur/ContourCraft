@@ -293,7 +293,7 @@ class GarmentCreator:
 
         return garment_dict
 
-    def add_garment(self, objfile, garment_dict_path, rest_pos_objfile=None):
+    def add_garment(self, objfile, garment_name, rest_pos_objfile=None, pinned_indices=None):
         """
         Add a new garment from a given obj file to the garments_dict_file
 
@@ -301,12 +301,15 @@ class GarmentCreator:
         :param garment_dict_path: path to the garment dict file to be created
         """
 
+        garment_dict_path = Path(self.garment_dicts_dir) / f'{garment_name}.pkl'
         garment_dict = self.make_garment_dict(objfile, rest_pos_objfile=rest_pos_objfile)
+        if pinned_indices is not None:
+            garment_dict = self._add_pinned_verts_dict(garment_dict, pinned_indices)
         pickle_dump(garment_dict, garment_dict_path)
         print(f'Garment dict saved to {garment_dict_path}')
 
 
-    def add_posed_garment(self, objfile, garment_name, body_params_file, checkpoint_path, n_relaxation_steps=30):
+    def add_posed_garment(self, objfile, garment_name, body_params_file, checkpoint_path, n_relaxation_steps=30, pinned_indices=None):
         garment_dict_path = Path(self.garment_dicts_dir) / f'{garment_name}.pkl'
         obj_dict = self._load_from_obj(objfile)
 
@@ -318,14 +321,35 @@ class GarmentCreator:
         obj_dict['vertices'] = vertices_unposed
         garment_dict = self._make_garment_dict_from_verts(obj_dict, vertices_canonical=vertices_posed)
 
-        pickle_dump(garment_dict, garment_dict_path)
+        if pinned_indices is not None:
+            garment_dict = self._add_pinned_verts_dict(garment_dict, pinned_indices)
 
+        pickle_dump(garment_dict, garment_dict_path)
 
         print("Relaxing the garment to remove unposing artifacts...")
         trajectories_dict = self.relax_zeropos(garment_name, checkpoint_path, n_steps=n_relaxation_steps)
         print(f'Garment dict saved to {garment_dict_path}')
 
-        return trajectories_dict
+        return trajectories_dict     
+
+
+    def _add_pinned_verts_dict(self, garment_dict, pinned_indices):
+        node_type = np.zeros_like(garment_dict['rest_pos'][:, :1])
+        node_type[pinned_indices] = NodeType.HANDLE
+        node_type = node_type.astype(np.int64)
+        garment_dict['node_type'] = node_type
+        return garment_dict
+
+
+    def add_pinned_verts(self, garment_name, pinned_indices):
+        """
+        Modify `node_type` field in the pickle file to mark pinned vertices with NodeType.HANDLE
+        """
+
+        garment_dict_path = Path(self.garment_dicts_dir) / f'{garment_name}.pkl'
+        garment_dict = pickle_load(garment_dict_path)
+        garment_dict = self._add_pinned_verts_dict(garment_dict, pinned_indices)
+        pickle_dump(garment_dict, garment_dict_path)
 
 
     def relax_zeropos(self, garment_name, checkpoint_path, n_steps=30):
@@ -463,7 +487,7 @@ def make_restpos_dict(vertices_full, faces_full):
 
 
 def obj2template(obj_path, verbose=False):
-    gc = GarmentCreator(None, None, None, collect_lbs=False, coarse=True, verbose=verbose, approximate_center=True)    
+    gc = GarmentCreator(None, None, None, None, collect_lbs=False, coarse=True, verbose=verbose, approximate_center=True)    
     out_dict = gc.make_garment_dict(obj_path)
 
     return out_dict
