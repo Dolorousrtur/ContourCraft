@@ -13,7 +13,7 @@ from torch_geometric.data import HeteroData
 
 from utils.coarse import make_coarse_edges
 from utils.common import NodeType, triangles_to_edges, separate_arms
-from utils.datasets import load_garments_dict, make_garment_smpl_dict
+from utils.datasets import load_garments_dict, make_garment_smpl_dict, make_obstacle_dict
 from utils.defaults import DEFAULTS
 from utils.garment_smpl import GarmentSMPL
 from utils.io import pickle_load
@@ -53,15 +53,6 @@ class Config:
         str] = None  # Path to the file with the table of beta parameters (used in validation to generate sequences with specific body shapes)
 
     fps: int = 30  # Target FPS for the sequence
-
-def make_obstacle_dict(mcfg: Config) -> dict:
-    if mcfg.obstacle_dict_file is None:
-        return {}
-
-    obstacle_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.obstacle_dict_file)
-    with open(obstacle_dict_path, 'rb') as f:
-        obstacle_dict = pickle.load(f)
-    return obstacle_dict
 
 
 def create_loader(mcfg: Config):

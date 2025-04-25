@@ -44,6 +44,14 @@ class Untangler:
             trajectories_dict = self.simulator._run_sequence(new_sample)
             untanglement.update_garments_from_trajectory(trajectories_dict, [new_garment])
 
+
+            out_sample_path = '/local/home/agrigorev/Data/temp/sample.pth'
+            out_trajectory_path = '/local/home/agrigorev/Data/temp/trajectory.pkl'
+
+            torch.save(new_sample, out_sample_path)
+            pickle_dump(trajectories_dict, out_trajectory_path)
+            assert False, 'Debugging'
+
             trajectories_dict = untanglement._fix_trajectory(trajectories_dict, inner_garments)
             trajectories_list.append(trajectories_dict)
 
