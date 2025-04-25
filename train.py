@@ -12,7 +12,7 @@ def main():
     os.environ['MKL_NUM_THREADS'] = '1'
     torch.set_num_threads(1)
     modules, config = load_params()
-    dataloader_ms, runner_module, runner, aux_modules = create_modules(modules, config)
+    dataloader_modules, runner_module, runner, aux_modules = create_modules(modules, config)
 
     runner, aux_modules = load_from_checkpoint(config, runner, aux_modules)
 
@@ -32,7 +32,7 @@ def main():
     for i in range(config.experiment.n_epochs):
         dataloaders_dict = dict()
 
-        for dataloader_name, dataloader in dataloader_ms.items():
+        for dataloader_name, dataloader in dataloader_modules.items():
             dataloaders_dict[dataloader_name] = dataloader.create_dataloader()
 
         global_step = runner_module.run_epoch(runner, aux_modules, dataloaders_dict, config, writer,

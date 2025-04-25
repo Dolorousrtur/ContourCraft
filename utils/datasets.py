@@ -5,6 +5,8 @@ from typing import Dict
 import torch
 import smplx
 from smplx import SMPL
+import os
+from utils.defaults import DEFAULTS
 
 from utils.garment_smpl import GarmentSMPL
 
@@ -64,3 +66,13 @@ def build_smpl_bygender(smpl_root, model_type='smpl', use_pca=False):
         smpl_model_dict[gender] = smplx.create(smpl_root, model_type=model_type, gender=gender, use_pca=use_pca)
     
     return smpl_model_dict
+
+
+def make_obstacle_dict(mcfg) -> dict:
+    if mcfg.obstacle_dict_file is None:
+        return {}
+
+    obstacle_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.obstacle_dict_file)
+    with open(obstacle_dict_path, 'rb') as f:
+        obstacle_dict = pickle.load(f)
+    return obstacle_dict

@@ -16,6 +16,7 @@ from utils.common import NodeType, triangles_to_edges, separate_arms
 from utils.defaults import DEFAULTS
 from utils.io import pickle_load
 from utils.mesh_creation import GarmentCreator, obj2template
+from utils.datasets import make_obstacle_dict
 import warnings
 
 from datasets.postcvpr import VertexBuilder
@@ -38,16 +39,6 @@ class Config:
 
     wholeseq: bool = True  
     fps: int = 30 
-
-def make_obstacle_dict(mcfg: Config) -> dict:
-    if mcfg.obstacle_dict_file is None:
-        return {}
-
-    obstacle_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.obstacle_dict_file)
-    with open(obstacle_dict_path, 'rb') as f:
-        obstacle_dict = pickle.load(f)
-    return obstacle_dict
-
 
 def create_loader(mcfg: Config):
 

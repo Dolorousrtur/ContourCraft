@@ -100,7 +100,7 @@ class Runner(nn.Module):
         super().__init__()
 
         self.model = model
-        self.criterion_dict_hood = criterion_dict
+        self.criterion_dict = criterion_dict
         self.mcfg = mcfg
 
         self.cloth_obj = ClothMatAug(None, always_overwrite_mass=True)
@@ -224,7 +224,7 @@ class Runner(nn.Module):
                 trajectories['obstacle'].append(prev_out_sample['obstacle'].target_pos)
 
             if not bare:
-                loss_dict_hood, loss_weight_dict_hood, _, _ = self.criterion_pass(sample_step, self.criterion_dict_hood)
+                loss_dict_hood, loss_weight_dict_hood, _, _ = self.criterion_pass(sample_step, self.criterion_dict)
                 metrics_dict = self.add_metrics(loss_dict_hood, loss_weight_dict_hood, None, None,
                                                 metrics_dict)
 
@@ -521,7 +521,7 @@ class Runner(nn.Module):
             fake_icontour = self.mcfg.always_fake_icontour or not use_wedges
 
             sample_step = self.model(sample_step, world_edges=use_wedges, fake_icontour=fake_icontour)
-            loss_dict_hood, loss_weight_dict_hood, gradient_dict, loss_metrics_dict = self.criterion_pass(sample_step, self.criterion_dict_hood)
+            loss_dict_hood, loss_weight_dict_hood, gradient_dict, loss_metrics_dict = self.criterion_pass(sample_step, self.criterion_dict)
 
             if use_wedges_seq:
                 ncoll = self.safecheck_solver.calc_tritri_collisions2(sample_step)
@@ -580,7 +580,6 @@ class Runner(nn.Module):
         prev_out_sample = None
         _i = 0
 
-        iter_num = sample['cloth'].iter[0].item()
         roll_steps = min(roll_steps, self.mcfg.roll_max_long)
 
         for i in range(roll_steps):
@@ -608,7 +607,7 @@ class Runner(nn.Module):
 
 
             sample_step = self.model(sample_step, world_edges=use_wedges, fake_icontour=fake_icontour)
-            loss_dict_hood, loss_weight_dict_hood, gradient_dict, _ = self.criterion_pass(sample_step, self.criterion_dict_hood)
+            loss_dict_hood, loss_weight_dict_hood, gradient_dict, _ = self.criterion_pass(sample_step, self.criterion_dict)
 
 
             if use_wedges_seq:
@@ -718,7 +717,8 @@ def make_checkpoint(runner, aux_modules, cfg, global_step):
         save_checkpoint(runner, aux_modules, cfg, checkpoint_path)
 
 
-def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, cfg: DictConfig, writer=None, global_step=None):
+def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict, 
+              cfg: DictConfig, writer=None, global_step=None):
     global_step = global_step or 0
 
     runner.model.train()

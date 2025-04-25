@@ -17,7 +17,7 @@ from torch_geometric.data import HeteroData
 
 from utils.coarse import make_coarse_edges
 from utils.common import NodeType, triangles_to_edges, separate_arms
-from utils.datasets import build_smpl_bygender, convert_lbs_dict, load_garments_dict, make_garment_smpl_dict
+from utils.datasets import build_smpl_bygender, convert_lbs_dict, make_obstacle_dict
 from utils.defaults import DEFAULTS
 from utils.garment_smpl import GarmentSMPL
 from utils.io import pickle_load
@@ -63,22 +63,9 @@ class Config:
 
     n_frames: int = 100  # (used for if sequence_loader is "cmu_npz_smplx_zeropos") Number of frames in the sequence
 
-def make_obstacle_dict(mcfg: Config) -> dict:
-    if mcfg.obstacle_dict_file is None:
-        return {}
-
-    obstacle_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.obstacle_dict_file)
-    with open(obstacle_dict_path, 'rb') as f:
-        obstacle_dict = pickle.load(f)
-    return obstacle_dict
-
 
 def create_loader(mcfg: Config):
-    # garment_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.garment_dict_file)
     garment_dict_dir = Path(DEFAULTS.aux_data) / mcfg.garment_dicts_dir
-
-    # garments_dict = load_garments_dict(garment_dict_path)
-
     body_model_root = Path(DEFAULTS.aux_data) / mcfg.body_model_root
 
     if mcfg.sequence_loader == 'hood_pkl':
@@ -88,10 +75,7 @@ def create_loader(mcfg: Config):
     elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
 
-    # body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
     body_models_dict = build_smpl_bygender(body_model_root, mcfg.model_type)
-
-    # garment_smpl_model_dict = make_garment_smpl_dict(garments_dict, body_model)
     obstacle_dict = make_obstacle_dict(mcfg)
 
     if mcfg.single_sequence_file is None:
@@ -209,11 +193,6 @@ class VertexBuilder:
         if len(pos.shape) == 3:
             pos= pos.permute(1, 0, 2)
 
-        # print('self.mcfg.wholeseq', self.mcfg.wholeseq)
-        # print('pos.shape', pos.shape)
-
-        # if not self.mcfg.wholeseq and pos.shape[1] == 1:
-        #     pos = pos[:, 0]
         return pos
     
     def permute_axes(self, vertices: np.ndarray) -> np.ndarray:  
@@ -334,7 +313,6 @@ class GarmentBuilder:
     Class to build the garment meshes from SMPL parameters.
     """
 
-    # def __init__(self, mcfg: Config, garments_dict: dict, garment_smpl_model_dict: Dict[str, GarmentSMPL]):
     def __init__(self, mcfg: Config, body_models_dict, garment_dicts_dir: str):
         """
         :param mcfg: config
