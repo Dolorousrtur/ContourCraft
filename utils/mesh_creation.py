@@ -393,9 +393,6 @@ class GarmentCreator:
         smpl_tree = neighbors.KDTree(body_verts)
         distances, nn_list = smpl_tree.query(garment_verts)
 
-        out_temp_bory = '/data/agrigorev/02_Projects/ccraft_data/examples/unpose/smpl_body_temp.obj'
-        save_obj(out_temp_bory, body_verts, body_model.faces)
-
         n_samples = self.n_lbs_samples
         if n_samples == 0:
             garment_shapedirs, garment_posedirs, garment_lbs_weights = sample_skinningweights(
