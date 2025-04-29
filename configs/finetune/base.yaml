@@ -1,0 +1,174 @@
+experiment:
+  name: debug
+  save_checkpoint_every: 50
+  save_checkpoint_every_wlong: 50
+  n_epochs: 20000000
+  max_iter: 46000
+  use_writer: True
+  n_steps_only_short: 50000
+  enable_attractions: True
+
+restart:
+  checkpoint_path: "trained_models/contourcraft.pth"
+  step_start: 45000
+  
+runner:
+  finetune:
+    push_eps: 2e-3
+    initial_ts: 3.333333333333333e-1
+    regular_ts: 3.333333333333333e-2
+    grad_clip: 1.
+    nocollect_after: 2
+    no_world_edges_every: 2
+    fake_icontour: False
+    reset_every: -1    
+    long_rollout_steps: -1
+    optimizer:
+      lr: 1e-7
+      decay_steps: 50_000
+      decay_rate: 5e-1
+    material:
+      lame_mu_min: 15909
+      lame_mu_max: 63636
+      lame_lambda_min: 3535.414406069427
+      lame_lambda_max: 93333.73508005822
+      bending_coeff_min: 6.370782056371576e-08
+      bending_coeff_max: 0.0013139737991266374
+      density_min: 4.34e-2
+      density_max: 7e-1
+
+dataloaders:
+  long: 
+    num_workers: 4
+    batch_size: 1
+    pyg_data: True
+    dataset:
+      ccraft:
+        data_root: ''
+        body_model_root: 'body_models'
+        sequence_loader: 'cmu_npz_smpl'
+        garment_dicts_dir: 'garment_dicts/smpl'
+        obstacle_dict_file: 'smpl_aux.pkl'
+        split_path: 'datasplits/train_ccraft.csv'
+        pinned_verts: True
+        n_coarse_levels: 4
+        separate_arms: False
+        wholeseq: True
+        nobody_freq: 0.
+
+  finetune:
+    num_workers: 4
+    batch_size: 1
+    pyg_data: True
+    dataset:
+      finetune: 
+        train_split_path: 'datasplits/finetuning/10006/Outer_from_orig_/train.csv'
+        valid_split_path: 'datasplits/finetuning/10006/Outer_from_orig_/valid.csv'
+        body_model_root: 'body_models'
+        sequence_loader: 'cmu_npz_smplx'
+        garment_dicts_dir: 'garment_dicts/finetune'
+        # obstacle_dict_file: 'smpl_aux.pkl'
+        registration_root: '/media/sdb/Data/opengaga/Outputs/10006/Outer_from_orig_/stage4/registrations'
+        body_sequence_root: '/media/sdb/Data/opengaga/Outputs/10006/Outer_from_orig_/stage4/smplx'
+        separate_arms: False
+
+material_stack:
+  mstack:
+    optimizer:
+      lr: 1e-7
+    material:
+      pervertex:
+        lame_mu_min: 15909
+        lame_mu_max: 63636
+        lame_lambda_min: 3535.414406069427
+        lame_lambda_max: 93333.73508005822
+        bending_coeff_min: 6.370782056371576e-08
+        bending_coeff_max: 0.0013139737991266374
+        density_min: 4.34e-2
+        density_max: 7e-1
+        density_init: 0.20022
+        lame_mu_init: 23600.0
+        lame_lambda_init: 44400
+        bending_coeff_init: 3.9625778333333325e-05
+ 
+
+criterions:
+  ccraft:
+    postcvpr.mataug.stretching_energy:
+    postcvpr.mataug.bending_energy:
+    postcvpr.inertia:
+    postcvpr.gravitational_energy:
+      z_axis: 1
+    ccraft.collision_penalty: #-
+      weight_start: 1e+6
+      weight_max: 1e+6
+      eps: 3e-3
+      start_rampup_iteration: 30000
+      n_rampup_iterations: 10000
+    ccraft.repulsion_loss: #-
+      weight_start: 2e+6
+      weight_max: 2e+6
+      step_start: 0
+      step_max: 100
+      correspondence_eps: 1e-2
+      penalty_eps: 3e-3
+      pinned_relative_weight: 1e2
+    ccraft.icontour_loss: #-
+      weight_start: 1e+7
+      weight_max: 1e+7
+      step_start: 45000
+      step_max: 50000
+      detach_coords: True
+      detach_coeffs: False
+      detach_aux_bary: False
+      detach_aux_edges: False
+      only_edgeloss: True
+
+  finetune:
+    ft.l2:
+      weight: 1e+13
+    ft.l2_boundary:
+      weight: 1e+13
+    ft.angles:
+      weight: 1e+8
+    ft.stretching:
+      weight: 1e+3
+    ccraft.collision_penalty: #-
+      weight_start: 1e+14
+      weight_max: 1e+14
+      eps: 3e-3
+      start_rampup_iteration: 30000
+      n_rampup_iterations: 10000
+    ccraft.repulsion_loss: #-
+      weight_start: 2e+6
+      weight_max: 2e+6
+      step_start: 0
+      step_max: 100
+      correspondence_eps: 1e-2
+      penalty_eps: 3e-3
+      pinned_relative_weight: 1e2
+    ccraft.icontour_loss: #-
+      weight_start: 1e+7
+      weight_max: 1e+7
+      step_start: 45000
+      step_max: 50000
+      detach_coords: True
+      detach_coeffs: False
+      detach_aux_bary: False
+      detach_aux_edges: False
+      only_edgeloss: True
+    ft.inertia:
+      weight: 1e+0
+
+  
+model:
+  ccraft:
+    core_model: 'ccraft'
+    architecture: "f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3"
+    collision_radius: 3e-2
+    body_collision_radius: 3e-2
+    n_coarse_levels: 4
+
+checkpoints_dir: 'trained_models/finetuning/base/'
+device: 'cuda:0'
+warp: True
