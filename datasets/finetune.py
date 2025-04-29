@@ -31,7 +31,7 @@ class Config:
 
     body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $DEFAULTS.data_root/aux_data/
     model_type: str = 'smpl'  # Type of the body model ('smpl' or 'smplx')
-    sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
+    sequence_loader: str = 'cmu_npz_smpl'  # Name of the sequence loader to use 
 
     swap_axes: bool = False
     pinned_verts: bool = True
@@ -59,7 +59,7 @@ def create_loader(mcfg: Config):
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif 'smpl' in mcfg.sequence_loader == 'cmu_npz_':
+    elif 'smpl' in mcfg.sequence_loader:
         mcfg.model_type = 'smpl'
     elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'

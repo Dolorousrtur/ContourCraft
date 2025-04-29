@@ -36,7 +36,7 @@ class Config:
     
     # rollout_steps: int = -1
 
-    sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
+    sequence_loader: str = 'cmu_npz_smpl'  # Name of the sequence loader to use 
     swap_axes: bool = True  
     noise_scale: float = 3e-3  # Noise scale for the garment vertices (not used in validation)
     lookup_steps: int = 5  # Number of steps to look up in the future (not used in validation)
@@ -71,7 +71,7 @@ def create_loader(mcfg: Config):
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif 'smpl' in mcfg.sequence_loader == 'cmu_npz_':
+    elif 'smpl' in mcfg.sequence_loader:
         mcfg.model_type = 'smpl'
     elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'

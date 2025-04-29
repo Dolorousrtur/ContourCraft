@@ -31,7 +31,7 @@ class Config:
         str] = None  # Path to the file with auxiliary data for obstacles relative to $DEFAULTS.data_root/aux_data/
     
 
-    sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
+    sequence_loader: str = 'cmu_npz_smpl'  # Name of the sequence loader to use 
     noise_scale: float = 3e-3  # Noise scale for the garment vertices (not used in validation)
     lookup_steps: int = 5  # Number of steps to look up in the future (not used in validation)
     pinned_verts: bool = False  # Whether to use pinned vertices
@@ -61,12 +61,12 @@ def create_loader(mcfg: Config):
     garments_dict = load_garments_dict(garment_dict_path)
 
     body_model_root = os.path.join(DEFAULTS.aux_data, mcfg.body_model_root)
-
+    
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smpl':
+    elif 'smpl' in mcfg.sequence_loader:
         mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smplx':
+    elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
 
     body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
