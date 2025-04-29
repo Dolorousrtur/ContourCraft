@@ -603,19 +603,30 @@ def step_ft(training_module, material_stack, sample, optimizer_list, scheduler_l
     return ld_to_write
 
 
-def make_checkpoint(training_module, aux_modules, cfg, global_step):
-
-    if hasattr(cfg, 'run_dir'):
-        checkpoints_dir = os.path.join(cfg.run_dir, 'checkpoints')
+def make_checkpoint(runner, aux_modules, cfg, global_step):
+    if global_step < cfg.experiment.n_steps_only_short:
+        to_save = global_step % cfg.experiment.save_checkpoint_every == 0
     else:
-        now = datetime.now()
-        dt_string = now.strftime("%Y%m%d_%H%M%S")
-        cfg.run_dir = os.path.join(DEFAULTS.experiment_root, dt_string)
-        checkpoints_dir = os.path.join(cfg.run_dir, 'checkpoints')
+        to_save = global_step % cfg.experiment.save_checkpoint_every_wlong == 0
 
-    os.makedirs(checkpoints_dir, exist_ok=True)
-    checkpoint_path = os.path.join(checkpoints_dir, f"step_{global_step:010d}.pth")
-    save_checkpoint(training_module, aux_modules, cfg, checkpoint_path)
+    if to_save:
+
+
+        if hasattr(cfg, 'checkpoints_dir') and cfg.checkpoints_dir is not None:
+            checkpoints_dir = Path(DEFAULTS.data_root) / cfg.checkpoints_dir
+        else:
+            now = datetime.now()
+            dt_string = now.strftime("%Y%m%d_%H%M%S")
+            run_dir = os.path.join(DEFAULTS.experiment_root, dt_string)
+            checkpoints_dir = os.path.join(run_dir, 'checkpoints')
+            cfg.checkpoints_dir = checkpoints_dir
+
+        os.makedirs(checkpoints_dir, exist_ok=True)
+        checkpoint_path = os.path.join(checkpoints_dir, f"step_{global_step:010d}.pth")
+        print('Saving checkpoint to', checkpoint_path)
+
+        save_checkpoint(runner, aux_modules, cfg, checkpoint_path)
+
 
 
 
@@ -684,7 +695,7 @@ def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: DataLoader,
         if writer is not None:
             writer.write_dict(ld_to_write)
 
-    make_checkpoint(runner, aux_modules, cfg, global_step)
+        make_checkpoint(runner, aux_modules, cfg, global_step)
 
 
     return global_step
