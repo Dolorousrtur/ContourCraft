@@ -71,10 +71,10 @@ def create_loader(mcfg: Config):
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif 'smpl' in mcfg.sequence_loader:
-        mcfg.model_type = 'smpl'
     elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
+    elif 'smpl' in mcfg.sequence_loader:
+        mcfg.model_type = 'smpl'
 
     body_models_dict = build_smpl_bygender(body_model_root, mcfg.model_type)
     obstacle_dict = make_obstacle_dict(mcfg)

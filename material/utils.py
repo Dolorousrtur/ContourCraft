@@ -37,11 +37,8 @@ def init_matstack(config, modules, aux_modules, dataloader_modules):
 
     material_stack = aux_modules['material_stack']
 
-    print('dataloader_ft', len(dataloader_ft))
     material_stack.initialize(dataloader_ft)
     material_stack = material_stack.to('cuda:0')
-
-    print('material_stack', material_stack.materials.keys())
 
     mstack_name = list(config.material_stack.keys())[0]
     optimizer_material = modules['material_stack'].create_optimizer(material_stack, config.material_stack[mstack_name].optimizer)

@@ -64,10 +64,10 @@ def create_loader(mcfg: Config):
     
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif 'smpl' in mcfg.sequence_loader:
-        mcfg.model_type = 'smpl'
     elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
+    elif 'smpl' in mcfg.sequence_loader:
+        mcfg.model_type = 'smpl'
 
     body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
 

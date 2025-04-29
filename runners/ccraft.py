@@ -701,7 +701,6 @@ def make_checkpoint(runner, aux_modules, cfg, global_step):
         to_save = global_step % cfg.experiment.save_checkpoint_every_wlong == 0
 
     if to_save:
-
         if hasattr(cfg, 'checkpoints_dir') and cfg.checkpoints_dir is not None:
             checkpoints_dir = Path(DEFAULTS.data_root) / cfg.checkpoints_dir
         else:
@@ -713,7 +712,7 @@ def make_checkpoint(runner, aux_modules, cfg, global_step):
 
         os.makedirs(checkpoints_dir, exist_ok=True)
         checkpoint_path = os.path.join(checkpoints_dir, f"step_{global_step:010d}.pth")
-        print('checkpoint_path', checkpoint_path)
+        print('Saving checkpoint to', checkpoint_path)
         save_checkpoint(runner, aux_modules, cfg, checkpoint_path)
 
 

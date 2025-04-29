@@ -128,9 +128,9 @@ class Runner(nn.Module):
 
         is_obstacle = 'obstacle' in sequence.node_types
         if is_obstacle:
-            n_samples = sequence['obstacle'].target_pos.shape[1]
+            n_samples = sequence['obstacle'].lookup.shape[1]
         else:
-            n_samples = sequence['cloth'].target_pos.shape[1]
+            n_samples = sequence['cloth'].lookup.shape[1]
 
         if n_steps >= 0:
             n_samples = min(n_samples, n_steps)
@@ -141,6 +141,7 @@ class Runner(nn.Module):
             st_time = time.time()
 
         st = 0
+        self.model.eval()
         trajectories, metrics_dict = self._rollout(sequence, material_stack, st, n_samples - st,
                                                     progressbar=progressbar, bare=bare)
 
@@ -199,17 +200,13 @@ class Runner(nn.Module):
 
         for i in pbar:
             sample_step = self.collect_sample(sample, i, prev_out_sample)
-            sample_step = self.safecheck_solver.mark_penetrating_faces_obstacle(sample_step)
-            sample_step = self.collision_solver.solve(sample_step, target=True) # TODO: solve everywhere ???
 
+            if i == 0:
+                sample_step, sample = self.update_sample_1st_step(sample_step, sample)
 
             if i == 0:
                 trajectories['pred'].append(sample_step['cloth'].prev_pos)
                 trajectories['pred'].append(sample_step['cloth'].pos)
-
-
-                trajectories['gt'].append(sample_step['cloth'].prev_pos)
-                trajectories['gt'].append(sample_step['cloth'].pos)
 
                 if is_obstacle:
                     trajectories['obstacle'].append(sample_step['obstacle'].prev_pos)
@@ -221,7 +218,7 @@ class Runner(nn.Module):
 
 
             with TorchTimer(metrics_dict, 'hood_time', start=start, end=end):
-                sample_step = self.model(sample_step, world_edges=True, fake_icontour=False, material=material_stack)
+                sample_step = self.model(sample_step, material=material_stack)
 
 
 
@@ -641,6 +638,9 @@ def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: DataLoader,
     dataloader_ft = dataloaders_dict['finetune']
 
     n_steps = compute_epoch_size(dataloader_long, dataloader_ft, cfg, global_step)
+
+    if cfg.experiment.max_iter is not None:
+        n_steps = min(n_steps, cfg.experiment.max_iter - global_step)
 
     prbar = tqdm(range(n_steps), desc=cfg.config)
 

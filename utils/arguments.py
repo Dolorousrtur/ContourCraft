@@ -154,11 +154,6 @@ def load_params(config_name: str=None, config_dir: str=None):
 
     modules['criterion_dicts'] = load_criterion_dicts(conf)
 
-    # modules['criterions'] = {}
-    # conf_criterions = conf.criterions
-    # for criterion_name in conf_criterions:
-    #     criterion_module = load_module('criterions', conf.criterions, criterion_name)
-    #     modules['criterions'][criterion_name] = criterion_module
 
 
     if 'material_stack' in conf:
@@ -217,15 +212,6 @@ def create_runner(modules: dict, config: DictConfig, create_aux_modules=True):
     # create model object
     model = create_module(modules['model'], config['model'])
 
-    # # fill criterion dict with criterion objects
-    # criterions = {}
-    # for criterion_name, criterion_module in modules['criterions'].items():
-    #     criterion = create_module(criterion_module, config['criterions'],
-    #                               module_name=criterion_name)
-    #     if hasattr(criterion, 'name'):
-    #         criterion_name = criterion.name
-    #     criterions[criterion_name] = criterion
-
     criterion_dicts = create_criterion_dicts(modules, config)
 
     # create Runner object from the specified runner module
@@ -258,15 +244,11 @@ def create_dataloader_modules(modules: dict, config: DictConfig):
     dataloader_modules = {}
 
     for dataset_name, dataset_module in modules['datasets'].items():
-        print('dataset_name', dataset_name)
         dataset_cfg = config.dataloaders[dataset_name].dataset
         dataset = create_module(dataset_module, dataset_cfg)
         dataloader_m = DataloaderModule(dataset, config['dataloader'])
         dataloader_modules[dataset_name] = dataloader_m
 
-    # # create dataset object and pass it to the dataloader module
-    # dataset = create_module(modules['dataset'], config['dataloader']['dataset'])
-    # dataloader_m = DataloaderModule(dataset, config['dataloader'])
     return dataloader_modules
 
 
