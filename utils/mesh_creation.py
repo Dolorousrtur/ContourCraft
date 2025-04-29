@@ -102,13 +102,15 @@ def approximate_graph_center(G):
 class GarmentCreator:
     def __init__(self, garment_dicts_dir, body_models_root, model_type, gender, 
                  collect_lbs=True, n_samples_lbs=0, coarse=True, n_coarse_levels=4, 
-                 approximate_center=False, verbose=False, add_uv=False):
+                 approximate_center=False, verbose=False, add_uv=False, swap_axes=True):
         
         self.garment_dicts_dir = garment_dicts_dir
         self.body_models_root = body_models_root
         self.model_type = model_type
         self.gender = gender
         self.add_uv = add_uv
+        self.swap_axes = swap_axes
+
 
 
         self.collect_lbs = collect_lbs
@@ -308,12 +310,10 @@ class GarmentCreator:
         pickle_dump(garment_dict, garment_dict_path)
         print(f'Garment dict saved to {garment_dict_path}')
 
-
-    def add_posed_garment(self, objfile, garment_name, body_params_file, checkpoint_path, n_relaxation_steps=30, pinned_indices=None):
+    def _add_posed_garment_raw(self, obj_dict, garment_name, body_params_dict, 
+                               checkpoint_path, n_relaxation_steps=30, 
+                               pinned_indices=None, gender=None):
         garment_dict_path = Path(self.garment_dicts_dir) / f'{garment_name}.pkl'
-        obj_dict = self._load_from_obj(objfile)
-
-        body_params_dict = pickle_load(body_params_file)
 
         vertices_posed = obj_dict['vertices']
         vertices_unposed = self.unpose_garment(vertices_posed, body_params_dict)
@@ -324,11 +324,28 @@ class GarmentCreator:
         if pinned_indices is not None:
             garment_dict = self._add_pinned_verts_dict(garment_dict, pinned_indices)
 
+        if gender is not None:
+            garment_dict['gender'] = gender
+
         pickle_dump(garment_dict, garment_dict_path)
 
         print("Relaxing the garment to remove unposing artifacts...")
         trajectories_dict = self.relax_zeropos(garment_name, checkpoint_path, n_steps=n_relaxation_steps)
         print(f'Garment dict saved to {garment_dict_path}')
+        return trajectories_dict     
+
+
+    def add_posed_garment(self, objfile, garment_name, body_params_file, 
+                          checkpoint_path, n_relaxation_steps=30, 
+                          pinned_indices=None, gender=None):
+
+        obj_dict = self._load_from_obj(objfile)
+        body_params_dict = pickle_load(body_params_file)
+
+        trajectories_dict = self._add_posed_garment_raw(obj_dict, garment_name, body_params_dict, checkpoint_path, 
+                                    n_relaxation_steps=n_relaxation_steps, 
+                                    pinned_indices=pinned_indices, 
+                                    gender=gender)
 
         return trajectories_dict     
 
@@ -379,22 +396,17 @@ class GarmentCreator:
         body_verts = body_model(**smplx_dict_pt).vertices[0]
         body_verts = body_verts.detach().cpu().numpy()
 
-
-
-        r_permute = np.array([[1,0,0],
-                [0,0,-1],
-                [0,1,0]], dtype=body_verts.dtype)
-        # body_verts = body_verts @ r_permute
-        garment_verts = garment_verts @ r_permute.T
+        if self.swap_axes:
+            r_permute = np.array([[1,0,0],
+                    [0,0,-1],
+                    [0,1,0]], dtype=body_verts.dtype)
+            garment_verts = garment_verts @ r_permute.T
 
         garment_verts = garment_verts - smplx_dict['transl']
         body_verts = body_verts -  smplx_dict['transl']
 
         smpl_tree = neighbors.KDTree(body_verts)
         distances, nn_list = smpl_tree.query(garment_verts)
-
-        out_temp_bory = '/data/agrigorev/02_Projects/ccraft_data/examples/unpose/smpl_body_temp.obj'
-        save_obj(out_temp_bory, body_verts, body_model.faces)
 
         n_samples = self.n_lbs_samples
         if n_samples == 0:

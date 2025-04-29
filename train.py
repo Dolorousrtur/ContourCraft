@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from material.utils import init_matstack
 import torch
 
 from utils.arguments import load_from_checkpoint, load_params, create_modules
@@ -13,6 +14,9 @@ def main():
     torch.set_num_threads(1)
     modules, config = load_params()
     dataloader_modules, runner_module, runner, aux_modules = create_modules(modules, config)
+
+    if 'material_stack' in aux_modules:
+        aux_modules = init_matstack(config, modules, aux_modules, dataloader_modules)
 
     runner, aux_modules = load_from_checkpoint(config, runner, aux_modules)
 

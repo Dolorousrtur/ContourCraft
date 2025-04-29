@@ -30,3 +30,22 @@ def get_vertex_mass(vertices, faces, density):
     vertex_masses = torch.index_add(vertex_masses, 0, faces[:, 2], triangle_masses / 3)
 
     return vertex_masses
+
+
+def init_matstack(config, modules, aux_modules, dataloader_modules):
+    dataloader_ft = dataloader_modules['finetune'].create_dataloader(is_eval=True)
+
+    material_stack = aux_modules['material_stack']
+
+    print('dataloader_ft', len(dataloader_ft))
+    material_stack.initialize(dataloader_ft)
+    material_stack = material_stack.to('cuda:0')
+
+    print('material_stack', material_stack.materials.keys())
+
+    mstack_name = list(config.material_stack.keys())[0]
+    optimizer_material = modules['material_stack'].create_optimizer(material_stack, config.material_stack[mstack_name].optimizer)
+
+    aux_modules['optimizer_material'] = optimizer_material
+
+    return aux_modules

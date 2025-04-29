@@ -27,7 +27,7 @@ from utils.io import pickle_load
 class Config:
     # garment_dict_file: str = MISSING  # Path to the garment dict file with data for all garments relative to $DEFAULTS.data_root/aux_data/
     garment_dicts_dir: str = MISSING  # Path to the garment dict file with data for all garments relative to $DEFAULTS.data_root/aux_data/
-    data_root: str = MISSING  # Path to the data root relative to $DEFAULTS.data_root/
+    data_root: str = MISSING  # Path to the data root relative to $DEFAULTS.CMU_root/
     body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $DEFAULTS.data_root/aux_data/
     model_type: str = 'smpl'  # Type of the body model ('smpl' or 'smplx')
     split_path: Optional[str] = None  # Path to the .csv split file relative to $DEFAULTS.data_root/aux_data/
@@ -37,6 +37,7 @@ class Config:
     # rollout_steps: int = -1
 
     sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
+    swap_axes: bool = True  
     noise_scale: float = 3e-3  # Noise scale for the garment vertices (not used in validation)
     lookup_steps: int = 5  # Number of steps to look up in the future (not used in validation)
     pinned_verts: bool = False  # Whether to use pinned vertices
@@ -196,12 +197,11 @@ class VertexBuilder:
         return pos
     
     def permute_axes(self, vertices: np.ndarray) -> np.ndarray:  
-        if self.mcfg.sequence_loader in ['cmu_npz_smpl', 'cmu_npz_smplx']:
+        if self.mcfg.sequence_loader in ['cmu_npz_smpl', 'cmu_npz_smplx'] and self.mcfg.swap_axes:
 
             r_permute = np.array([[1,0,0],
                         [0,0,-1],
-                        [0,1,0]], dtype=vertices.dtype)
-            
+                        [0,1,0]], dtype=vertices.dtype)            
 
             vertices = vertices @ r_permute
 
@@ -508,6 +508,7 @@ class GarmentBuilder:
         :param coarse_edges_dict: dictionary with list of edges for each coarse level
         :return: sample['cloth'].vertex_level: torch.LongTensor [Vx1]
         """
+
         N = sample['cloth'].pos.shape[0]
         vertex_level = np.zeros((N, 1)).astype(np.int64)
         for i in range(self.mcfg.n_coarse_levels):
@@ -660,7 +661,11 @@ class GarmentBuilder:
 
         if garment_name not in self.garment_smpl_model_dict:
             garment_dict = self.garments_dict[garment_name]
-            gender = garment_dict.get('gender', self.mcfg.gender)
+
+            if 'gender' in garment_dict:
+                gender = garment_dict['gender']
+            else:
+                gender = self.mcfg.gender
             body_model = self.body_models_dict[gender]
             garment_smpl_model = GarmentSMPL(body_model, garment_dict['lbs'])
             self.garment_smpl_model_dict[garment_name] = garment_smpl_model

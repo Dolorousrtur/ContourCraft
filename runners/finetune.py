@@ -198,7 +198,7 @@ class Runner(nn.Module):
         sample = self.prepare_sample(sample, ft=ft)
 
         for i in pbar:
-            sample_step = self.collect_sample(sample, i, prev_out_sample, wholeseq=True)
+            sample_step = self.collect_sample(sample, i, prev_out_sample)
             sample_step = self.safecheck_solver.mark_penetrating_faces_obstacle(sample_step)
             sample_step = self.collision_solver.solve(sample_step, target=True) # TODO: solve everywhere ???
 
@@ -221,7 +221,7 @@ class Runner(nn.Module):
 
 
             with TorchTimer(metrics_dict, 'hood_time', start=start, end=end):
-                sample_step = self.model(sample_step, material_stack, world_edges=True, is_training=False, fake_icontour=False)
+                sample_step = self.model(sample_step, world_edges=True, fake_icontour=False, material=material_stack)
 
 
 
@@ -281,16 +281,18 @@ class Runner(nn.Module):
         return loss_dict, loss_weight_dict, gradient_dict, metrics_dict
 
 
-    def collect_sample(self, sample, index, prev_out_dict=None, wholeseq=False, random_ts=False):
+    def collect_sample(self, sample, idx, prev_out_dict=None, random_ts=False, is_short=False):
         sample_step = copy_pyg_batch(sample)
 
-        sample_step = self.sample_collector.sequence2sample(sample_step, index)
-        sample_step = sample_step = move2device(sample_step, 'cuda:0')
+        # coly fields from the previous step (pred_pos -> pos, pos->prev_pos)
         sample_step = self.sample_collector.copy_from_prev(sample_step, prev_out_dict)
         ts = self.mcfg.regular_ts
 
+        if idx > 0:
+            sample_step = self.sample_collector.lookup2target(sample_step, idx)
+
         is_init = False
-        if not wholeseq and index == 0:
+        if is_short and idx == 0:
             if random_ts:
                 is_init = np.random.rand() > 0.5
                 if is_init:
@@ -299,11 +301,9 @@ class Runner(nn.Module):
                 is_init = True
                 ts = self.mcfg.initial_ts
 
-
-        sample_step = self.sample_collector.add_timestep(sample_step, ts)
         sample_step = self.sample_collector.add_is_init(sample_step, is_init)
+        sample_step = self.sample_collector.add_timestep(sample_step, ts)
         sample_step = self.sample_collector.add_velocity(sample_step, prev_out_dict)
-
         return sample_step
 
     def add_metrics_from_dict(self, loss_dict, loss_weight_dict, metrics_dict_step, prefix):
@@ -450,10 +450,7 @@ class Runner(nn.Module):
 
     def forward_long(self, sample, optimizer_list=None, scheduler_list=None) -> dict:
         sample = self.prepare_sample(sample)
-        roll_steps = sample['cloth'].pos.shape[1]
-
-
-        self.long_steps += 1
+        roll_steps = sample['cloth'].lookup.shape[1]
 
         metrics_dict = defaultdict(list)
         prev_out_sample = None
@@ -466,7 +463,7 @@ class Runner(nn.Module):
             sample = add_field_to_pyg_batch(sample, 'step', [i], 'cloth', reference_key=None)
 
             sample = self._add_cloth_obj(sample)
-            sample_step = self.collect_sample(sample, i, prev_out_sample, wholeseq=True)
+            sample_step = self.collect_sample(sample, i, prev_out_sample)
             sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step, object='obstacle', use_target=True) 
 
             if i == 0:
@@ -510,7 +507,7 @@ class Runner(nn.Module):
     def forward_ft(self, sample, material_stack, optimizer_list=None, scheduler_list=None) -> dict:
 
         sample = self.prepare_sample(sample, ft=True)
-        roll_steps = sample['cloth'].pos.shape[1]
+        roll_steps = sample['cloth'].lookup.shape[1]
 
         metrics_dict = defaultdict(list)
         prev_out_sample = None
@@ -536,7 +533,9 @@ class Runner(nn.Module):
             else:
                 prev = prev_out_sample            
              
-            sample_step = self.collect_sample(sample, i, prev, wholeseq=True)
+            sample_step = self.collect_sample(sample, i, prev)
+
+
             sample_step = self.safecheck_solver.mark_penetrating_faces(sample_step, object='obstacle', use_target=True) 
 
 
@@ -544,9 +543,9 @@ class Runner(nn.Module):
 
 
             self.model.train(False)
-            sample_step = self.model(sample_step, material_stack,
-                                     world_edges=True, fake_icontour=False)
+            sample_step = self.model(sample_step, world_edges=True, fake_icontour=False, material=material_stack)
             loss_dict_hood, loss_weight_dict_hood, gradient_dict, _ = self.criterion_pass(sample_step, self.criterion_dict_ft)
+
 
             # loss_dict_impulse, loss_weight_dict_impulse = None, None
             self.optimizer_step(optimizer_list, scheduler_list, loss_dict_hood, gradient_dict, sample_step, material_stack=material_stack)
@@ -632,8 +631,8 @@ def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: DataLoader,
     material_stack = aux_modules['material_stack']
 
 
-    optimizer_model = aux_modules['optimizer_model']
-    scheduler_model = aux_modules['scheduler_model']
+    optimizer_model = aux_modules['optimizer']
+    scheduler_model = aux_modules['scheduler']
 
     optimizer_material = aux_modules['optimizer_material']
     scheduler_material = aux_modules['scheduler_material'] if 'scheduler_material' in aux_modules else None

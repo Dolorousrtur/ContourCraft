@@ -384,13 +384,17 @@ class Model(nn.Module):
 
     def _create_mesh_edge_set(self, sample, edge_label, normalizer):
         pos = sample['cloth'].input_pos
-        rest_pos = sample['cloth'].rest_pos
         edges = sample['cloth', edge_label, 'cloth'].edge_index.T
 
         relative_pos = self.get_relative_pos(pos, edges)
         relative_pos_norm = torch.norm(relative_pos, dim=-1, keepdim=True)
 
-        relative_rest_pos = self.get_relative_pos(rest_pos, edges)
+        if 'relative_rest_pos' in sample['cloth', edge_label, 'cloth']:
+            relative_rest_pos = sample['cloth', edge_label, 'cloth'].relative_rest_pos
+        else:
+            rest_pos = sample['cloth'].rest_pos
+            relative_rest_pos = self.get_relative_pos(rest_pos, edges)
+
         relative_rest_pos_norm = torch.norm(relative_rest_pos, dim=-1, keepdim=True)
 
         edge_slice = sample._slice_dict['cloth', edge_label, 'cloth']['edge_index']
@@ -623,7 +627,10 @@ class Model(nn.Module):
 
 
     
-    def add_materials(self, sample):
+    def add_materials(self, sample, material=None):
+        if material is not None:
+            sample = material.apply_material(sample)
+            return sample
         sample = self.add_materials_to_nodes(sample)
 
         sample = self.add_materials_to_mesh_edges(sample, 'mesh_edge')
@@ -727,7 +734,7 @@ class Model(nn.Module):
 
         return sample
 
-    def prepare_inputs(self, sample, is_world_edges=True, fake_icontour=False):
+    def prepare_inputs(self, sample, is_world_edges=True, fake_icontour=False, material=None):
         """Builds input graph."""
 
         sample = self.replace_pinned_verts(sample)
@@ -736,7 +743,7 @@ class Model(nn.Module):
         sample = self.add_edges(sample, is_world_edges=is_world_edges, fake_icontour=fake_icontour)
 
 
-        sample = self.add_materials(sample)
+        sample = self.add_materials(sample, material=material)
 
         sample = self._make_nodefeatures(sample)
 
@@ -841,9 +848,9 @@ class Model(nn.Module):
 
         return sample
 
-    def forward(self, inputs, world_edges=True, fake_icontour=False): 
+    def forward(self, inputs, world_edges=True, fake_icontour=False, material=None): 
         inputs = self.add_icontour(inputs, world_edges, fake_icontour)
-        sample = self.prepare_inputs(inputs, is_world_edges=world_edges, fake_icontour=fake_icontour)
+        sample = self.prepare_inputs(inputs, is_world_edges=world_edges, fake_icontour=fake_icontour, material=material)
         sample = self._learned_model(sample)
         sample = self._get_position(sample)
         return sample

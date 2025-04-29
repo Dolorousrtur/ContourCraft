@@ -36,9 +36,14 @@ class MaterialStack(torch.nn.Module):
         self.material_config = mcfg.material[material_name]
 
     def initialize(self, dataloader):
+        tuple_set = set()
         for i, sample in enumerate(dataloader):
-            gname = sample['garment_name'][0]
-            self.materials[gname] = self.material_class(self.material_config, sample)
+            garment_name = sample['garment_name'][0]
+            sequence_name = sample['sequence_name'][0]
+            if (garment_name, sequence_name) in tuple_set:
+                break
+            tuple_set.add((garment_name, sequence_name))
+            self.materials[garment_name] = self.material_class(self.material_config, sample)
 
     def _stack_material_dicts(self, material_dicts):
         stacked_material_dict = defaultdict(list)

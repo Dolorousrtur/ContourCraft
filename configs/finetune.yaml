@@ -3,11 +3,10 @@ experiment:
   save_checkpoint_every: 20
   save_checkpoint_every_wlong: 20
   n_epochs: 20000000
+  max_iter: 46000
   use_writer: True
   n_steps_only_short: 50000
-  enable_repulsions: True # not used?
   enable_attractions: True
-  ft_data_for_long: False # ???
 
 restart:
   checkpoint_path: "trained_models/contourcraft.pth"
@@ -39,7 +38,7 @@ runner:
       density_max: 7e-1
 
 dataloaders:
-  long: # only long and ft are used
+  long: 
     num_workers: 4
     batch_size: 1
     pyg_data: True
@@ -61,14 +60,17 @@ dataloaders:
     num_workers: 4
     batch_size: 1
     pyg_data: True
-    finetune:
-      ccraft: # TODO: finetune dataset
-        train_split_path: 'datasplits/allall_train.csv'
-        valid_split_path: 'datasplits/allall_valid.csv'
+    dataset:
+      finetune: 
+        train_split_path: 'datasplits/finetuning/10006/Outer_from_orig_/train.csv'
+        valid_split_path: 'datasplits/finetuning/10006/Outer_from_orig_/valid.csv'
         body_model_root: 'body_models'
-        sequence_loader: 'cmu_npz_smpl'
-        garment_dicts_dir: 'garment_dicts/smpl'
-        obstacle_dict_file: 'smpl_aux.pkl'
+        sequence_loader: 'cmu_npz_smplx'
+        garment_dicts_dir: 'garment_dicts/finetune'
+        # obstacle_dict_file: 'smpl_aux.pkl'
+        registration_root: '/media/sdb/Data/opengaga/Outputs/10006/Outer_from_orig_/stage4/registrations'
+        body_sequence_root: '/media/sdb/Data/opengaga/Outputs/10006/Outer_from_orig_/stage4/smplx'
+        separate_arms: False
 
 material_stack:
   mstack:
