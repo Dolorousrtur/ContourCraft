@@ -6,6 +6,7 @@ import torch
 
 from utils.arguments import load_from_checkpoint, load_params, create_modules
 from utils.writer import WandbWriter
+from utils.defaults import DEFAULTS
 
 
 def main():
@@ -17,6 +18,7 @@ def main():
 
     if 'material_stack' in aux_modules:
         aux_modules = init_matstack(config, modules, aux_modules, dataloader_modules)
+        DEFAULTS.project_name = 'gaugar_finetune'
 
     runner, aux_modules = load_from_checkpoint(config, runner, aux_modules)
 
