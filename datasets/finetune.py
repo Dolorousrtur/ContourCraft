@@ -21,8 +21,8 @@ class Config:
     valid_split_path: str = MISSING
     smpl_dir: str = MISSING
     garment_dict_dir: str = MISSING
-    registration_root: Optional[str] = MISSING
-    body_sequence_root: Optional[str] = MISSING
+    registration_root: Optional[str] = None
+    body_sequence_root: Optional[str] = None
     smplx_segmentation_file: Optional[str] = None
 
     # data_root: Optional[str] = None # do not set
@@ -83,6 +83,12 @@ def create(mcfg: Config, **kwargs):
 
     split_path = os.path.join(DEFAULTS.aux_data, split_file)
     datasplit = pd.read_csv(split_path, dtype='str')
+
+    if mcfg.registration_root is None and 'registration_root' not in datasplit.columns:
+        raise ValueError('No registration_root provided in the configuration file and no registration_root column in the datasplit')
+    
+    if mcfg.body_sequence_root is None and 'body_sequence_root' not in datasplit.columns:
+        raise ValueError('No body_sequence_root provided in the configuration file and no body_sequence_root column in the datasplit')
 
     if 'valid' not in kwargs or not kwargs['valid']:
         datasplit = pd.concat([datasplit] * mcfg.repeat_datasplit, ignore_index=True)
@@ -173,21 +179,23 @@ class Loader:
         sequence_loader_module = importlib.import_module(f'datasets.sequence_loaders.{mcfg.sequence_loader}')
         SequenceLoader = sequence_loader_module.SequenceLoader
 
-        self.sequence_loader = SequenceLoader(mcfg, mcfg.body_sequence_root, betas_table=betas_table)
+        body_sequence_root = mcfg.body_sequence_root or ''
+        self.sequence_loader = SequenceLoader(mcfg, body_sequence_root, betas_table=betas_table)
         self.garment_builder = GarmentBuilder(mcfg, body_models_dict, garment_dicts_dir)
         self.body_builder = BodyBuilder(mcfg, body_models_dict, obstacle_dict)
 
         self.mcfg = mcfg
 
-    def load_sample(self, subject, sequence, gender):
-
-        smplx_sequence_path = Path(self.mcfg.body_sequence_root) / (sequence + '.npz')
+    def load_sample(self, subject, sequence, gender, registration_root=None, body_sequence_root=None):
+        body_sequence_root = body_sequence_root or self.mcfg.body_sequence_root
+        smplx_sequence_path = Path(body_sequence_root) / (sequence + '.npz')
         smpl_sequence = self.sequence_loader.load_sequence(smplx_sequence_path)
 
         sample = HeteroData()
         sample = self.body_builder.build(sample, smpl_sequence, 0, gender)
 
-        garment_seq_path = Path(self.mcfg.registration_root) / (sequence + '.pkl')
+        registration_root = registration_root or self.mcfg.registration_root
+        garment_seq_path = Path(registration_root) / (sequence + '.pkl')
         sample = self.garment_builder.build(sample, garment_seq_path, subject, smpl_sequence)
 
         return sample
@@ -236,8 +244,19 @@ class Dataset:
             gender = 'female'
         idx = 0
 
+        if 'registration_root' in self.datasplit.columns:
+            registration_root = self.datasplit.registration_root[item]
+        else:
+            registration_root = None
 
-        sample = self.loader.load_sample(garment_name, fname, gender)
+        if 'body_sequence_root' in self.datasplit.columns:
+            body_sequence_root = self.datasplit.body_sequence_root[item]
+        else:
+            body_sequence_root = None
+
+        sample = self.loader.load_sample(garment_name, fname, gender, 
+                                         registration_root=registration_root, 
+                                         body_sequence_root=body_sequence_root)
         sample['sequence_name'] = fname
         sample['garment_name'] = garment_name
 

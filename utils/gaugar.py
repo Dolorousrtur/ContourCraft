@@ -193,7 +193,7 @@ class GauGarConverter:
 
         return relaxation_trajectory
     
-    def _create_config(self, subject_out):
+    def _create_config(self, subject_out, multigarment=False):
         template_config_path = Path(DEFAULTS.project_dir) / 'configs' / 'finetune' / 'base.yaml'
         config = yaml.safe_load(template_config_path.read_text())
         config['dataloaders']['finetune']['dataset']['finetune']['train_split_path'] = \
@@ -201,10 +201,14 @@ class GauGarConverter:
         config['dataloaders']['finetune']['dataset']['finetune']['valid_split_path'] = \
              str(Path('datasplits') / 'finetuning' / subject_out / 'valid.csv'        )
 
-        config['dataloaders']['finetune']['dataset']['finetune']['registration_root'] = \
-                str(Path(self.gaugar_output_root) / subject_out / 'stage4' / 'registrations')
-        config['dataloaders']['finetune']['dataset']['finetune']['body_sequence_root'] = \
-                str(Path(self.gaugar_output_root) / subject_out / 'stage4' / 'smplx')
+        if multigarment:
+            config['dataloaders']['finetune']['dataset']['finetune'].pop('registration_root')
+            config['dataloaders']['finetune']['dataset']['finetune'].pop('body_sequence_root')
+        else:
+            config['dataloaders']['finetune']['dataset']['finetune']['registration_root'] = \
+                    str(Path(self.gaugar_output_root) / subject_out / 'stage4' / 'registrations')
+            config['dataloaders']['finetune']['dataset']['finetune']['body_sequence_root'] = \
+                    str(Path(self.gaugar_output_root) / subject_out / 'stage4' / 'smplx')
         
 
         config['checkpoints_dir'] = f"trained_models/finetuning/{subject_out}"
@@ -224,5 +228,44 @@ class GauGarConverter:
         subject_out = subject_out or subject
         self._convert_smplx_subject(subject, subject_out, gender)
         self._convert_garment_subject(subject_out)
-        self._create_datasplits(subject, subject_out, gender)
+        self._create_datasplits(subject_out, gender)
         self._create_config(subject_out)
+
+    def _convert_df_multigarment(self, df, subject_name):
+        n_items = len(df)
+        registration_root = Path(self.gaugar_output_root) / subject_name / 'stage4' / 'registrations'
+        smplx_root = Path(self.gaugar_output_root) / subject_name / 'stage4' / 'smplx'
+        df['registration_root'] = [str(registration_root)] * n_items
+        df['body_sequence_root'] = [str(smplx_root)] * n_items
+        return df
+
+    def _create_datasplits_multigarment(self, subject_list, experiment_name):
+        train_datasplit_list = []
+        valid_datasplit_list = []
+
+        for i, subject_out in enumerate(subject_list):
+            train_df_path = Path(DEFAULTS.aux_data) / 'datasplits' / 'finetuning' / subject_out / 'train.csv'
+            valid_df_path = Path(DEFAULTS.aux_data) / 'datasplits' / 'finetuning' / subject_out / 'valid.csv'
+            train_df = pd.read_csv(train_df_path)
+            valid_df = pd.read_csv(valid_df_path)
+
+            train_df = self._convert_df_multigarment(train_df, subject_out)
+            valid_df = self._convert_df_multigarment(valid_df, subject_out)
+
+            train_datasplit_list.append(train_df)
+            valid_datasplit_list.append(valid_df)
+
+        train_datasplit = pd.concat(train_datasplit_list, axis=0)
+        valid_datasplit = pd.concat(valid_datasplit_list, axis=0)
+
+        out_datasplit_dir = Path(DEFAULTS.aux_data) / 'datasplits' / 'finetuning' / experiment_name
+        out_datasplit_dir.mkdir(parents=True, exist_ok=True)
+
+        train_datasplit.to_csv(out_datasplit_dir / 'train.csv', index=False)
+        valid_datasplit.to_csv(out_datasplit_dir / 'valid.csv', index=False)
+        print(f"Datasplits saved to {out_datasplit_dir}")
+
+    def prepare_multigarment(self, subject_list, experiment_name):
+        self._create_datasplits_multigarment(subject_list, experiment_name)
+        self._create_config(experiment_name, multigarment=True)
+            

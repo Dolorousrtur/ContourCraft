@@ -4,7 +4,7 @@ experiment:
   save_checkpoint_every_wlong: 50
   n_epochs: 20000000
   max_iter: 46000
-  use_writer: True
+  use_writer: False
   n_steps_only_short: 50000
   enable_attractions: True
 
