@@ -104,7 +104,7 @@ experiment:
   name: debug
   save_checkpoint_every: 50
   save_checkpoint_every_wlong: 50
-  use_writer: false
+  use_writer: true
 material_stack:
   mstack:
     material:

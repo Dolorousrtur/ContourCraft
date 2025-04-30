@@ -170,7 +170,7 @@ class GauGarConverter:
 
         return converted_dict
 
-    def import_garment(self, subject_out, template_sequence, template_frame, gender, pinned_indices=None):
+    def _import_garment(self, subject_out, template_sequence, template_frame, gender, pinned_indices=None):
         gc = GarmentCreator(self.garment_dicts_dir, self.body_models_root, 'smplx', gender, 
                     n_samples_lbs=0, verbose=True, coarse=True, approximate_center=True, swap_axes=False)
 
@@ -224,12 +224,13 @@ class GauGarConverter:
         return out_config_path
 
 
-    def convert_subject(self, subject, gender, subject_out=None):
+    def convert_subject(self, subject, gender, template_sequence, template_frame, subject_out=None):
         subject_out = subject_out or subject
         self._convert_smplx_subject(subject, subject_out, gender)
         self._convert_garment_subject(subject_out)
         self._create_datasplits(subject_out, gender)
         self._create_config(subject_out)
+        self._import_garment(subject_out, template_sequence, template_frame, gender)
 
     def _convert_df_multigarment(self, df, subject_name):
         n_items = len(df)
