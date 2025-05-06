@@ -20,7 +20,6 @@ from utils.cloth_and_material import FaceNormals, ClothMatAug, Material
 from utils.common import move2device, gather, save_checkpoint, add_field_to_pyg_batch, \
     random_between, relative_between, relative_between_log, random_between_log
 from utils.defaults import DEFAULTS
-from huepy import yellow
 
 
 @dataclass
@@ -418,7 +417,7 @@ def run_epoch(training_module: Runner, aux_modules: dict, dataloader: DataLoader
         cfg.run_dir = os.path.join(DEFAULTS.experiment_root, dt_string)
         checkpoints_dir = os.path.join(cfg.run_dir, 'checkpoints')
 
-    print(yellow(f'run_epoch started, checkpoints will be saved in {checkpoints_dir}'))
+    print(f'run_epoch started, checkpoints will be saved in {checkpoints_dir}')
 
     prbar = tqdm(dataloader, desc=cfg.config)
 
