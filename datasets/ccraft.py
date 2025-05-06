@@ -17,7 +17,7 @@ from torch_geometric.data import HeteroData
 
 from utils.coarse import make_coarse_edges
 from utils.common import NodeType, triangles_to_edges, separate_arms
-from utils.datasets import build_smpl_bygender, convert_lbs_dict, load_garments_dict, make_garment_smpl_dict
+from utils.datasets import build_smpl_bygender, convert_lbs_dict, make_obstacle_dict
 from utils.defaults import DEFAULTS
 from utils.garment_smpl import GarmentSMPL
 from utils.io import pickle_load
@@ -27,7 +27,7 @@ from utils.io import pickle_load
 class Config:
     # garment_dict_file: str = MISSING  # Path to the garment dict file with data for all garments relative to $DEFAULTS.data_root/aux_data/
     garment_dicts_dir: str = MISSING  # Path to the garment dict file with data for all garments relative to $DEFAULTS.data_root/aux_data/
-    data_root: str = MISSING  # Path to the data root relative to $DEFAULTS.data_root/
+    data_root: str = MISSING  # Path to the data root relative to $DEFAULTS.CMU_root/
     body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $DEFAULTS.data_root/aux_data/
     model_type: str = 'smpl'  # Type of the body model ('smpl' or 'smplx')
     split_path: Optional[str] = None  # Path to the .csv split file relative to $DEFAULTS.data_root/aux_data/
@@ -36,7 +36,8 @@ class Config:
     
     # rollout_steps: int = -1
 
-    sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
+    sequence_loader: str = 'cmu_npz_smpl'  # Name of the sequence loader to use 
+    swap_axes: bool = True  
     noise_scale: float = 3e-3  # Noise scale for the garment vertices (not used in validation)
     lookup_steps: int = 5  # Number of steps to look up in the future (not used in validation)
     pinned_verts: bool = False  # Whether to use pinned vertices
@@ -63,35 +64,19 @@ class Config:
 
     n_frames: int = 100  # (used for if sequence_loader is "cmu_npz_smplx_zeropos") Number of frames in the sequence
 
-def make_obstacle_dict(mcfg: Config) -> dict:
-    if mcfg.obstacle_dict_file is None:
-        return {}
-
-    obstacle_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.obstacle_dict_file)
-    with open(obstacle_dict_path, 'rb') as f:
-        obstacle_dict = pickle.load(f)
-    return obstacle_dict
-
 
 def create_loader(mcfg: Config):
-    # garment_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.garment_dict_file)
     garment_dict_dir = Path(DEFAULTS.aux_data) / mcfg.garment_dicts_dir
-
-    # garments_dict = load_garments_dict(garment_dict_path)
-
     body_model_root = Path(DEFAULTS.aux_data) / mcfg.body_model_root
 
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif 'smpl' in mcfg.sequence_loader == 'cmu_npz_':
-        mcfg.model_type = 'smpl'
     elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
+    elif 'smpl' in mcfg.sequence_loader:
+        mcfg.model_type = 'smpl'
 
-    # body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
     body_models_dict = build_smpl_bygender(body_model_root, mcfg.model_type)
-
-    # garment_smpl_model_dict = make_garment_smpl_dict(garments_dict, body_model)
     obstacle_dict = make_obstacle_dict(mcfg)
 
     if mcfg.single_sequence_file is None:
@@ -209,20 +194,14 @@ class VertexBuilder:
         if len(pos.shape) == 3:
             pos= pos.permute(1, 0, 2)
 
-        # print('self.mcfg.wholeseq', self.mcfg.wholeseq)
-        # print('pos.shape', pos.shape)
-
-        # if not self.mcfg.wholeseq and pos.shape[1] == 1:
-        #     pos = pos[:, 0]
         return pos
     
     def permute_axes(self, vertices: np.ndarray) -> np.ndarray:  
-        if self.mcfg.sequence_loader in ['cmu_npz_smpl', 'cmu_npz_smplx']:
+        if self.mcfg.sequence_loader in ['cmu_npz_smpl', 'cmu_npz_smplx'] and self.mcfg.swap_axes:
 
             r_permute = np.array([[1,0,0],
                         [0,0,-1],
-                        [0,1,0]], dtype=vertices.dtype)
-            
+                        [0,1,0]], dtype=vertices.dtype)            
 
             vertices = vertices @ r_permute
 
@@ -334,7 +313,6 @@ class GarmentBuilder:
     Class to build the garment meshes from SMPL parameters.
     """
 
-    # def __init__(self, mcfg: Config, garments_dict: dict, garment_smpl_model_dict: Dict[str, GarmentSMPL]):
     def __init__(self, mcfg: Config, body_models_dict, garment_dicts_dir: str):
         """
         :param mcfg: config
@@ -530,6 +508,7 @@ class GarmentBuilder:
         :param coarse_edges_dict: dictionary with list of edges for each coarse level
         :return: sample['cloth'].vertex_level: torch.LongTensor [Vx1]
         """
+
         N = sample['cloth'].pos.shape[0]
         vertex_level = np.zeros((N, 1)).astype(np.int64)
         for i in range(self.mcfg.n_coarse_levels):
@@ -682,7 +661,11 @@ class GarmentBuilder:
 
         if garment_name not in self.garment_smpl_model_dict:
             garment_dict = self.garments_dict[garment_name]
-            gender = garment_dict.get('gender', self.mcfg.gender)
+
+            if 'gender' in garment_dict:
+                gender = garment_dict['gender']
+            else:
+                gender = self.mcfg.gender
             body_model = self.body_models_dict[gender]
             garment_smpl_model = GarmentSMPL(body_model, garment_dict['lbs'])
             self.garment_smpl_model_dict[garment_name] = garment_smpl_model

@@ -16,6 +16,7 @@ from utils.common import NodeType, triangles_to_edges, separate_arms
 from utils.defaults import DEFAULTS
 from utils.io import pickle_load
 from utils.mesh_creation import GarmentCreator, obj2template
+from utils.datasets import make_obstacle_dict
 import warnings
 
 from datasets.postcvpr import VertexBuilder
@@ -26,7 +27,7 @@ class Config:
     garment_template_path: str = MISSING  # Path to the garment template relative to $DEFAULTS.data_root. Can  be either .obj file or preprocessed or .pkl file (see utils/mesh_creation::obj2template)
     pose_sequence_type: str = "body_model"  # "body_model" | "mesh" if "body_model" the pose_sequence_path is a sequence of SMPL parameters, if "mesh" the pose_sequence_path is a sequence of meshes
 
-    sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
+    sequence_loader: str = 'cmu_npz_smpl'  # Name of the sequence loader to use 
     body_model_root: str = 'body_models'  # Path to the directory containg body model files, should contain `smpl` and/or `smplx` sub-directories. Relative to $DEFAULTS.data_root/aux_data/
     model_type: str = 'smpl'  # Type of the body model ('smpl' or 'smplx')
     gender: str = 'female' # Gender of the body model ('male' | 'female' | 'neutral')    
@@ -38,16 +39,6 @@ class Config:
 
     wholeseq: bool = True  
     fps: int = 30 
-
-def make_obstacle_dict(mcfg: Config) -> dict:
-    if mcfg.obstacle_dict_file is None:
-        return {}
-
-    obstacle_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.obstacle_dict_file)
-    with open(obstacle_dict_path, 'rb') as f:
-        obstacle_dict = pickle.load(f)
-    return obstacle_dict
-
 
 def create_loader(mcfg: Config):
 

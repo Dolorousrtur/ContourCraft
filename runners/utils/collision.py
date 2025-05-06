@@ -40,10 +40,11 @@ class CollisionPreprocessor:
 
         return direction_upd
 
-    def solve(self, sample):
+    def solve(self, sample, target=False):
         if 'obstacle' not in sample.node_types:
             return sample
         
+
         B = sample.num_graphs
         new_example_list = []
         for i in range(B):
@@ -54,6 +55,10 @@ class CollisionPreprocessor:
             obstacle_faces = example['obstacle'].faces_batch.T.unsqueeze(0)
             cloth_prev_pos = example['cloth'].prev_pos.unsqueeze(0)
 
+            if 'faces_cutout_mask_batch' in example['obstacle']:
+                faces_mask = example['obstacle'].faces_cutout_mask_batch[0]
+                obstacle_faces = obstacle_faces[:, faces_mask]
+
             pos_shift = self.calc_direction(cloth_pos, obstacle_pos, obstacle_faces)
             prev_pos_shift = self.calc_direction(cloth_prev_pos, obstacle_prev_pos, obstacle_faces)
 
@@ -62,6 +67,14 @@ class CollisionPreprocessor:
 
             example['cloth'].pos = new_pos[0]
             example['cloth'].prev_pos = new_prev_pos[0]
+
+            if target:
+                cloth_target_pos = example['cloth'].target_pos.unsqueeze(0)
+                obstacle_target_pos = example['obstacle'].target_pos.unsqueeze(0)
+                target_pos_shift = self.calc_direction(cloth_target_pos, obstacle_target_pos, obstacle_faces)
+                new_target_pos = cloth_target_pos - target_pos_shift
+                example['cloth'].target_pos = new_target_pos[0]
+
             new_example_list.append(example)
 
         sample = Batch.from_data_list(new_example_list)

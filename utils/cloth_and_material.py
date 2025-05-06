@@ -46,8 +46,8 @@ class Cloth:
         return f_area
 
     def make_connectivity(self, f):
-        f_connectivity, f_connectivity_edges = get_face_connectivity_combined(f)
-        return f_connectivity, f_connectivity_edges
+        f_connectivity, f_connectivity_edges, boundary_mask = get_face_connectivity_combined(f)
+        return f_connectivity, f_connectivity_edges, boundary_mask
 
     def make_Dm_inv(self, v, f):
         """
@@ -109,7 +109,7 @@ class Cloth:
                 if not self.always_overwrite_mass:
                     v_mass = self.make_v_mass(v, f, device)
                 f_area = self.make_f_area(v, f, device)
-                f_connectivity, f_connectivity_edges = self.make_connectivity(f)
+                f_connectivity, f_connectivity_edges, _ = self.make_connectivity(f)
                 Dm_inv = self.make_Dm_inv(v, f)
 
                 self.cache[garment_name]['v_mass'] = v_mass
@@ -184,7 +184,7 @@ class ClothMatAug(Cloth):
                     v_mass = self.make_v_mass(v, f, density, device)
                 f_area = self.make_f_area(v, f, device)
 
-                f_connectivity, f_connectivity_edges = self.make_connectivity(f)
+                f_connectivity, f_connectivity_edges, _ = self.make_connectivity(f)
                 Dm_inv = self.make_Dm_inv(v, f)
 
                 self.cache[garment_name]['v_mass'] = v_mass
@@ -203,6 +203,62 @@ class ClothMatAug(Cloth):
 
         batch = Batch.from_data_list(new_examples_list)
         return batch
+
+
+class ClothNoMat(Cloth):
+    def __init__(self):
+        self.cache = defaultdict(dict)
+        pass
+
+    def set_batch(self, batch, overwrite_pos=False):
+        B = batch.num_graphs
+        device = batch['cloth'].pos.device
+
+        new_examples_list = []
+        for i in range(B):
+            example = batch.get_example(i)
+            garment_name = example.garment_name
+
+            v = example['cloth'].rest_pos
+            f = example['cloth'].faces_batch.T
+
+            if garment_name in self.cache:
+                f_connectivity = self.cache[garment_name]['f_connectivity']
+                f_connectivity_edges = self.cache[garment_name]['f_connectivity_edges']
+                boundary_mask = self.cache[garment_name]['boundary_mask']
+                if not overwrite_pos:
+                    f_area = self.cache[garment_name]['f_area']
+                    Dm_inv = self.cache[garment_name]['Dm_inv']
+                else:
+                    f_area = self.make_f_area(v, f, device)
+                    Dm_inv = self.make_Dm_inv(v, f)
+
+            else:
+                f_area = self.make_f_area(v, f, device)
+
+                f_connectivity, f_connectivity_edges, boundary_mask = self.make_connectivity(f)
+
+                Dm_inv = self.make_Dm_inv(v, f)
+
+                Dm_inv_mean = Dm_inv.mean(dim=-1).mean(dim=-1)
+
+                self.cache[garment_name]['f_area'] = f_area
+                self.cache[garment_name]['f_connectivity'] = f_connectivity
+                self.cache[garment_name]['f_connectivity_edges'] = f_connectivity_edges
+                self.cache[garment_name]['boundary_mask'] = boundary_mask
+                self.cache[garment_name]['Dm_inv'] = Dm_inv
+
+            example['cloth'].f_area = f_area
+            example['cloth'].f_connectivity = f_connectivity
+            example['cloth'].f_connectivity_edges = f_connectivity_edges
+            example['cloth'].boundary_mask = boundary_mask
+            example['cloth'].Dm_inv = Dm_inv
+
+            new_examples_list.append(example)
+
+        batch = Batch.from_data_list(new_examples_list)
+        return batch
+
 
 
 class Material():
@@ -409,20 +465,33 @@ def get_face_connectivity_combined(faces):
             e = tuple(sorted([f[j], f[k]]))
             G[e] += [i]
 
+            m = (j + 2) % n
+
     adjacent_faces = []
     adjacent_face_edges = []
+    boundary_nodes = []
 
     for key in G:
         if len(G[key]) >= 3:
+            # print(f'Found non-manifold edge  #{key}!')
             G[key] = G[key][:2]
+        # assert len(G[key]) < 3
         if len(G[key]) == 2:
             adjacent_faces += [G[key]]
             adjacent_face_edges += [list(key)]
+        
+        if len(G[key]) == 1:
+            boundary_nodes += list(key)
 
     adjacent_faces = torch.LongTensor(adjacent_faces).to(device)
     adjacent_face_edges = torch.LongTensor(adjacent_face_edges).to(device)
+    boundary_nodes = torch.LongTensor(boundary_nodes).to(device)
 
-    return adjacent_faces, adjacent_face_edges
+    boundary_mask = torch.zeros(faces.max().item()+1, device=device).bool()
+    boundary_mask[boundary_nodes] = True
+
+
+    return adjacent_faces, adjacent_face_edges, boundary_mask
 
 
 def get_vertex_mass(vertices, faces, density):

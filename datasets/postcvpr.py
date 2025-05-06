@@ -13,7 +13,7 @@ from torch_geometric.data import HeteroData
 
 from utils.coarse import make_coarse_edges
 from utils.common import NodeType, triangles_to_edges, separate_arms
-from utils.datasets import load_garments_dict, make_garment_smpl_dict
+from utils.datasets import load_garments_dict, make_garment_smpl_dict, make_obstacle_dict
 from utils.defaults import DEFAULTS
 from utils.garment_smpl import GarmentSMPL
 from utils.io import pickle_load
@@ -31,7 +31,7 @@ class Config:
         str] = None  # Path to the file with auxiliary data for obstacles relative to $DEFAULTS.data_root/aux_data/
     
 
-    sequence_loader: str = 'hood_pkl'  # Name of the sequence loader to use 
+    sequence_loader: str = 'cmu_npz_smpl'  # Name of the sequence loader to use 
     noise_scale: float = 3e-3  # Noise scale for the garment vertices (not used in validation)
     lookup_steps: int = 5  # Number of steps to look up in the future (not used in validation)
     pinned_verts: bool = False  # Whether to use pinned vertices
@@ -54,15 +54,6 @@ class Config:
 
     fps: int = 30  # Target FPS for the sequence
 
-def make_obstacle_dict(mcfg: Config) -> dict:
-    if mcfg.obstacle_dict_file is None:
-        return {}
-
-    obstacle_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.obstacle_dict_file)
-    with open(obstacle_dict_path, 'rb') as f:
-        obstacle_dict = pickle.load(f)
-    return obstacle_dict
-
 
 def create_loader(mcfg: Config):
     garment_dict_path = os.path.join(DEFAULTS.aux_data, mcfg.garment_dict_file)
@@ -70,13 +61,13 @@ def create_loader(mcfg: Config):
     garments_dict = load_garments_dict(garment_dict_path)
 
     body_model_root = os.path.join(DEFAULTS.aux_data, mcfg.body_model_root)
-
+    
     if mcfg.sequence_loader == 'hood_pkl':
         mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smpl':
-        mcfg.model_type = 'smpl'
-    elif mcfg.sequence_loader == 'cmu_npz_smplx':
+    elif 'smplx' in  mcfg.sequence_loader:
         mcfg.model_type = 'smplx'
+    elif 'smpl' in mcfg.sequence_loader:
+        mcfg.model_type = 'smpl'
 
     body_model = smplx.create(body_model_root, model_type=mcfg.model_type, gender=mcfg.gender, use_pca=False)
 

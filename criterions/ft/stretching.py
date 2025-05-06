@@ -4,7 +4,7 @@ import einops
 import torch
 from torch import nn
 
-from utils.cloth_and_material import gather_triangles, get_shape_matrix
+from utils.cloth_and_material import edges_3d_to_2d, gather_triangles, get_shape_matrix
 from utils.common import make_pervertex_tensor_from_lens
 
 
@@ -12,10 +12,12 @@ from utils.common import make_pervertex_tensor_from_lens
 class Config:
     weight: float = 1.
     thickness: float = 4.7e-4
+    lame_mu: float = 63636
+    lame_lambda: float = 93333
 
 
-def create(mcfg):
-    return Criterion(weight=mcfg.weight, thickness=mcfg.thickness)
+def create(mcfg, **kwargs):
+    return Criterion(mcfg, weight=mcfg.weight)
 
 
 def deformation_gradient(triangles, Dm_inv):
@@ -32,20 +34,35 @@ def green_strain_tensor(F):
     return 0.5 * (Ft @ F - I)
 
 
+def make_Dm_inv(v, f):
+    tri_m = gather_triangles(v.unsqueeze(0), f)[0]
+
+    edges = get_shape_matrix(tri_m)
+    edges = edges.permute(0, 2, 1)
+    edges_2d = edges_3d_to_2d(edges).permute(0, 2, 1)
+    Dm_inv = torch.inverse(edges_2d)
+    return Dm_inv
+
 class Criterion(nn.Module):
-    def __init__(self, weight, thickness):
+    def __init__(self, mcfg, weight):
         super().__init__()
         self.weight = weight
-        self.thickness = thickness
-        self.name = 'stretching_energy'
+        self.thickness = mcfg.thickness
+        self.lame_mu = mcfg.lame_mu
+        self.lame_lambda = mcfg.lame_lambda
+        self.name = 'stretching'
 
     def create_stack(self, triangles_list, param):
         lens = [x.shape[0] for x in triangles_list]
         stack = make_pervertex_tensor_from_lens(lens, param)[:, 0]
         return stack
 
+
     def forward(self, sample):
-        Dm_inv = sample['cloth'].Dm_inv
+
+        target_pos = sample['cloth'].target_pos
+        faces = sample['cloth'].faces_batch.T
+        Dm_inv = make_Dm_inv(target_pos, faces)
 
 
         f_area = sample['cloth'].f_area[None, ..., 0]
@@ -62,8 +79,6 @@ class Criterion(nn.Module):
             triangles = gather_triangles(v.unsqueeze(0), f)[0]
             triangles_list.append(triangles)
 
-        lame_mu_stack = self.create_stack(triangles_list, sample['cloth'].lame_mu)
-        lame_lambda_stack = self.create_stack(triangles_list, sample['cloth'].lame_lambda)
         triangles = torch.cat(triangles_list, dim=0)
 
         F = deformation_gradient(triangles, Dm_inv)
@@ -74,16 +89,14 @@ class Criterion(nn.Module):
 
         G_trace = G.diagonal(dim1=-1, dim2=-2).sum(-1)  # trace
 
-        S = lame_mu_stack[:, None, None] * G + 0.5 * lame_lambda_stack[:, None, None] * G_trace[:, None, None] * I
+        S = self.lame_mu * G + 0.5 * self.lame_lambda * G_trace[:, None, None] * I
         energy_density_matrix = S.permute(0, 2, 1) @ G
         energy_density = energy_density_matrix.diagonal(dim1=-1, dim2=-2).sum(-1)  # trace
         f_area = f_area[0]
 
         energy = f_area * self.thickness * energy_density
 
-        if 'faces_cutout_mask_batch' in example['cloth']:
-            faces_mask = sample['cloth'].faces_cutout_mask_batch[0]
-            energy = energy[faces_mask]
+        energy[energy != energy] = 0   # remove NaNs
 
         loss = energy.sum() / B * self.weight
 

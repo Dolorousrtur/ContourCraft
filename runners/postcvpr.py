@@ -7,7 +7,6 @@ from typing import Dict, Optional
 
 import numpy as np
 import torch
-from huepy import yellow
 from omegaconf import II
 from omegaconf.dictconfig import DictConfig
 from torch import nn
@@ -74,7 +73,7 @@ class Runner(nn.Module):
         super().__init__()
 
         self.model = model
-        self.criterion_dict = criterion_dict
+        self.criterion_dict = criterion_dict['ccraft']
         self.mcfg = mcfg
 
         self.cloth_obj = ClothMatAug(None, always_overwrite_mass=True)
@@ -368,7 +367,7 @@ def run_epoch(training_module: Runner, aux_modules: dict, dataloader: DataLoader
         dt_string = now.strftime("%Y%m%d_%H%M%S")
         cfg.run_dir = os.path.join(DEFAULTS.experiment_root, dt_string)
         checkpoints_dir = os.path.join(cfg.run_dir, 'checkpoints')
-    print(yellow(f'run_epoch started, checkpoints will be saved in {checkpoints_dir}'))
+    print(f'run_epoch started, checkpoints will be saved in {checkpoints_dir}')
 
     for sample in prbar:
         global_step += 1

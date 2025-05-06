@@ -101,6 +101,19 @@ def load_dataset_params(conf):
 
     return dataset_modules, conf
 
+def load_criterion_dicts(conf):
+    criterion_dicts = {}
+
+    for criterion_dict_name, criterion_conf in conf.criterions.items():
+        criterion_dict = {}
+        criterion_names = criterion_conf.keys()
+        # Can have arbitrary number of criterions
+        for criterion_name in criterion_names:
+            criterion_module = load_module('criterions', criterion_conf, criterion_name)
+            criterion_dict[criterion_name] = criterion_module
+        criterion_dicts[criterion_dict_name] = criterion_dict
+    return criterion_dicts
+
 def load_params(config_name: str=None, config_dir: str=None):
     """
     Build OmegaConf config and the modules from the config file.
@@ -139,15 +152,12 @@ def load_params(config_name: str=None, config_dir: str=None):
     modules['model'] = load_module('models', conf.model)
     modules['runner'] = load_module('runners', conf.runner)
 
-    # Can have arbitrary number of criterions
-    modules['criterions'] = {}
-    conf_criterions = conf.criterions
-    for criterion_name in conf_criterions:
-        criterion_module = load_module('criterions', conf.criterions, criterion_name)
-        modules['criterions'][criterion_name] = criterion_module
+    modules['criterion_dicts'] = load_criterion_dicts(conf)
 
-    # dataset_module = load_module('datasets', conf.dataloader.dataset)
-    # modules['dataset'] = dataset_module
+
+
+    if 'material_stack' in conf:
+        modules['material_stack'] = load_module('material', conf.material_stack)
 
     modules['datasets'], conf, = load_dataset_params(conf)
 
@@ -169,6 +179,22 @@ def create_module(module, module_config: DictConfig, module_name: str=None):
     return module_object
 
 
+def create_criterion_dicts(modules: dict, config: DictConfig):
+    criterion_dicts_dict = {}
+
+    for criterion_dict_name, criterion_dict in modules['criterion_dicts'].items():
+        criterion_dict_object = {}
+        for criterion_name, criterion_module in criterion_dict.items():
+            criterion = create_module(criterion_module, config['criterions'][criterion_dict_name],
+                                      module_name=criterion_name)
+            if hasattr(criterion, 'name'):
+                criterion_name = criterion.name
+            criterion_dict_object[criterion_name] = criterion
+        criterion_dicts_dict[criterion_dict_name] = criterion_dict_object
+
+    return criterion_dicts_dict
+
+
 def create_runner(modules: dict, config: DictConfig, create_aux_modules=True):
     """
     Create a runner object from the specified runner module.
@@ -186,17 +212,10 @@ def create_runner(modules: dict, config: DictConfig, create_aux_modules=True):
     # create model object
     model = create_module(modules['model'], config['model'])
 
-    # fill criterion dict with criterion objects
-    criterions = {}
-    for criterion_name, criterion_module in modules['criterions'].items():
-        criterion = create_module(criterion_module, config['criterions'],
-                                  module_name=criterion_name)
-        if hasattr(criterion, 'name'):
-            criterion_name = criterion.name
-        criterions[criterion_name] = criterion
+    criterion_dicts = create_criterion_dicts(modules, config)
 
     # create Runner object from the specified runner module
-    runner = runner_module.Runner(model, criterions, runner_config)
+    runner = runner_module.Runner(model, criterion_dicts, runner_config)
 
     # create optimizer and scheduler from the specified runner module
     aux_modules = dict()
@@ -205,6 +224,11 @@ def create_runner(modules: dict, config: DictConfig, create_aux_modules=True):
         optimizer, scheduler = runner_module.create_optimizer(runner, runner_config.optimizer)
         aux_modules['optimizer'] = optimizer
         aux_modules['scheduler'] = scheduler
+
+    
+    if 'material_stack' in modules:
+        material_stack = create_module(modules['material_stack'], config.material_stack)
+        aux_modules['material_stack'] = material_stack
 
     return runner_module, runner, aux_modules
 
@@ -225,9 +249,6 @@ def create_dataloader_modules(modules: dict, config: DictConfig):
         dataloader_m = DataloaderModule(dataset, config['dataloader'])
         dataloader_modules[dataset_name] = dataloader_m
 
-    # # create dataset object and pass it to the dataloader module
-    # dataset = create_module(modules['dataset'], config['dataloader']['dataset'])
-    # dataloader_m = DataloaderModule(dataset, config['dataloader'])
     return dataloader_modules
 
 

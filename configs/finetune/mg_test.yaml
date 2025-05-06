@@ -1,0 +1,160 @@
+checkpoints_dir: trained_models/finetuning/mg_test
+criterions:
+  ccraft:
+    ccraft.collision_penalty:
+      eps: 3e-3
+      n_rampup_iterations: 10000
+      start_rampup_iteration: 30000
+      weight_max: 1e+6
+      weight_start: 1e+6
+    ccraft.icontour_loss:
+      detach_aux_bary: false
+      detach_aux_edges: false
+      detach_coeffs: false
+      detach_coords: true
+      only_edgeloss: true
+      step_max: 50000
+      step_start: 45000
+      weight_max: 1e+7
+      weight_start: 1e+7
+    ccraft.repulsion_loss:
+      correspondence_eps: 1e-2
+      penalty_eps: 3e-3
+      pinned_relative_weight: 1e2
+      step_max: 100
+      step_start: 0
+      weight_max: 2e+6
+      weight_start: 2e+6
+    postcvpr.gravitational_energy:
+      z_axis: 1
+    postcvpr.inertia: null
+    postcvpr.mataug.bending_energy: null
+    postcvpr.mataug.stretching_energy: null
+  finetune:
+    ccraft.collision_penalty:
+      eps: 3e-3
+      n_rampup_iterations: 10000
+      start_rampup_iteration: 30000
+      weight_max: 1e+14
+      weight_start: 1e+14
+    ccraft.icontour_loss:
+      detach_aux_bary: false
+      detach_aux_edges: false
+      detach_coeffs: false
+      detach_coords: true
+      only_edgeloss: true
+      step_max: 50000
+      step_start: 45000
+      weight_max: 1e+7
+      weight_start: 1e+7
+    ccraft.repulsion_loss:
+      correspondence_eps: 1e-2
+      penalty_eps: 3e-3
+      pinned_relative_weight: 1e2
+      step_max: 100
+      step_start: 0
+      weight_max: 2e+6
+      weight_start: 2e+6
+    ft.angles:
+      weight: 1e+8
+    ft.inertia:
+      weight: 1e+0
+    ft.l2:
+      weight: 1e+13
+    ft.l2_boundary:
+      weight: 1e+13
+    ft.stretching:
+      weight: 1e+3
+dataloaders:
+  finetune:
+    batch_size: 1
+    dataset:
+      finetune:
+        body_model_root: body_models
+        garment_dicts_dir: garment_dicts/finetune
+        separate_arms: false
+        sequence_loader: cmu_npz_smplx
+        train_split_path: datasplits/finetuning/mg_test/train.csv
+        valid_split_path: datasplits/finetuning/mg_test/valid.csv
+    num_workers: 4
+    pyg_data: true
+  long:
+    batch_size: 1
+    dataset:
+      ccraft:
+        body_model_root: body_models
+        data_root: ''
+        garment_dicts_dir: garment_dicts/smpl
+        n_coarse_levels: 4
+        nobody_freq: 0.0
+        obstacle_dict_file: smpl_aux.pkl
+        pinned_verts: true
+        separate_arms: false
+        sequence_loader: cmu_npz_smpl
+        split_path: datasplits/train_ccraft.csv
+        wholeseq: true
+    num_workers: 4
+    pyg_data: true
+device: cuda:0
+experiment:
+  enable_attractions: true
+  max_iter: 46000
+  n_epochs: 20000000
+  n_steps_only_short: 50000
+  name: debug
+  save_checkpoint_every: 50
+  save_checkpoint_every_wlong: 50
+  use_writer: true
+material_stack:
+  mstack:
+    material:
+      pervertex:
+        bending_coeff_init: 3.9625778333333325e-05
+        bending_coeff_max: 0.0013139737991266374
+        bending_coeff_min: 6.370782056371576e-08
+        density_init: 0.20022
+        density_max: 7e-1
+        density_min: 0.0434
+        lame_lambda_init: 44400
+        lame_lambda_max: 93333.73508005822
+        lame_lambda_min: 3535.414406069427
+        lame_mu_init: 23600.0
+        lame_mu_max: 63636
+        lame_mu_min: 15909
+    optimizer:
+      lr: 1e-7
+model:
+  ccraft:
+    architecture: f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3|f,c3
+    body_collision_radius: 3e-2
+    collision_radius: 3e-2
+    core_model: ccraft
+    n_coarse_levels: 4
+restart:
+  checkpoint_path: trained_models/contourcraft.pth
+  step_start: 45000
+runner:
+  finetune:
+    fake_icontour: false
+    grad_clip: 1.0
+    initial_ts: 0.3333333333333333
+    long_rollout_steps: -1
+    material:
+      bending_coeff_max: 0.0013139737991266374
+      bending_coeff_min: 6.370782056371576e-08
+      density_max: 7e-1
+      density_min: 0.0434
+      lame_lambda_max: 93333.73508005822
+      lame_lambda_min: 3535.414406069427
+      lame_mu_max: 63636
+      lame_mu_min: 15909
+    no_world_edges_every: 2
+    nocollect_after: 2
+    optimizer:
+      decay_rate: 5e-1
+      decay_steps: 50000
+      lr: 1e-7
+    push_eps: 2e-3
+    regular_ts: 0.03333333333333333
+    reset_every: -1
+warp: true

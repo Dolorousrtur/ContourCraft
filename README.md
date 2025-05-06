@@ -30,6 +30,9 @@ To convert new garments to the format used in ContourCraft, refer to [GarmentImp
 ## Training
 Follow the instructions in [TRAINING.md](TRAINING.md) to train a ContourCraft model from scratch.
 
+## Gaussian Garments
+To finetune a ContourCraft model with GaussianGarments registrations and then simulate garment sequences with the finetuned behavior, refer to [GaussianGarments.ipynb](GaussianGarments.ipynb) 
+
 ## Repository structure
 The repository structure closely follows the repository for HOOD. Please see [RepoIntro.md](https://github.com/Dolorousrtur/HOOD/blob/main/RepoIntro.md)  in the HOOD repository for more details.
 
