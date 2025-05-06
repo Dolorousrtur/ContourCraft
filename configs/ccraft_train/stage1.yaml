@@ -69,26 +69,28 @@ dataloaders:
         wholeseq: True
         noise_scale: 0.
 
+
 criterions:
-  postcvpr.mataug.stretching_energy:
-  postcvpr.mataug.bending_energy:
-  postcvpr.inertia:
-  postcvpr.gravitational_energy:
-    z_axis: 1
-  ccraft.collision_penalty: #-
-    weight_start: 5e+3
-    weight_max: 1e+6
-    eps: 3e-3
-    start_rampup_iteration: 30000
-    n_rampup_iterations: 10000
-  ccraft.repulsion_loss: #-
-    weight_start: 0.
-    weight_max: 2e+6
-    step_start: 30000
-    step_max: 40000
-    correspondence_eps: 1e-2
-    penalty_eps: 3e-3
-    pinned_relative_weight: 1e2
+  ccraft:
+    postcvpr.mataug.stretching_energy:
+    postcvpr.mataug.bending_energy:
+    postcvpr.inertia:
+    postcvpr.gravitational_energy:
+      z_axis: 1
+    ccraft.collision_penalty: #-
+      weight_start: 5e+3
+      weight_max: 1e+6
+      eps: 3e-3
+      start_rampup_iteration: 30000
+      n_rampup_iterations: 10000
+    ccraft.repulsion_loss: #-
+      weight_start: 0.
+      weight_max: 2e+6
+      step_start: 30000
+      step_max: 40000
+      correspondence_eps: 1e-2
+      penalty_eps: 3e-3
+      pinned_relative_weight: 1e2
 
 model:
   ccraft:

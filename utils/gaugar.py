@@ -228,9 +228,9 @@ class GauGarConverter:
         subject_out = subject_out or subject
         self._convert_smplx_subject(subject, subject_out, gender)
         self._convert_garment_subject(subject_out)
+        self._import_garment(subject_out, template_sequence, template_frame, gender)
         self._create_datasplits(subject_out, gender)
         self._create_config(subject_out)
-        self._import_garment(subject_out, template_sequence, template_frame, gender)
 
     def _convert_df_multigarment(self, df, subject_name):
         n_items = len(df)

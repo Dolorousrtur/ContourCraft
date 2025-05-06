@@ -25,7 +25,6 @@ def main():
     if config.detect_anomaly:
         torch.autograd.set_detect_anomaly(True)
         
-    writer = WandbWriter(config)
     if config.experiment.use_writer:
         writer = WandbWriter(config)
     else:

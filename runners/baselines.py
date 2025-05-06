@@ -72,8 +72,8 @@ class Runner(nn.Module):
     def __init__(self, model: nn.Module, criterion_dict: Dict[str, nn.Module], mcfg: DictConfig):
         super().__init__()
 
-        self.model = model
-        self.criterion_dict = criterion_dict
+        self.model = model        
+        self.criterion_dict = criterion_dict['ccraft']
         self.mcfg = mcfg
 
         self.cloth_obj = ClothMatAug(None, always_overwrite_mass=True)
