@@ -100,7 +100,7 @@ class Runner(nn.Module):
         super().__init__()
 
         self.model = model
-        self.criterion_dict = criterion_dict
+        self.criterion_dict = criterion_dict['ccraft']
         self.mcfg = mcfg
 
         self.cloth_obj = ClothMatAug(None, always_overwrite_mass=True)
