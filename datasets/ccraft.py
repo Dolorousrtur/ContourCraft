@@ -437,24 +437,19 @@ class GarmentBuilder:
         return restpos
 
     def make_shaped_restpos(self, sequence_dict: dict, garment_name: str) -> np.ndarray:
-        """
-        Create resting pose geometry for a garment in SMPL zero pose with given SMPL betas
 
-        :param sequence_dict: dict with
-            sequence_dict['body_pose'] np.array SMPL body pose [Nx69]
-            sequence_dict['global_orient'] np.array SMPL global_orient [Nx3]
-            sequence_dict['transl'] np.array SMPL translation [Nx3]
-            sequence_dict['betas'] np.array SMPL betas [10]
-        :param garment_name: name of the garment in `self.garment_smpl_model_dict`
-        :return: zeroposed garment with given shape [Vx3]
-        """
-        body_pose = np.zeros_like(sequence_dict['body_pose'][:1])
-        global_orient = np.zeros_like(sequence_dict['global_orient'][:1])
-        transl = np.zeros_like(sequence_dict['transl'][:1])
-        verts = self.make_cloth_verts(body_pose,
-                                      global_orient,
-                                      transl,
-                                      sequence_dict['betas'], garment_name=garment_name)
+        sequence_dict_temp = dict()
+        for k in ['global_orient', 'body_pose', 'transl', 'left_hand_pose', 'right_hand_pose',
+            'jaw_pose', 'leye_pose', 'reye_pose', 'expression']:
+            if k not in sequence_dict:
+                continue
+
+            v = np.zeros_like(sequence_dict[k][:1])
+            sequence_dict_temp[k] = v
+
+        sequence_dict_temp['betas'] = sequence_dict['betas'][:1]
+
+        verts = self.make_cloth_verts(sequence_dict_temp, garment_name=garment_name)
         return verts
 
     def add_restpos(self, sample: HeteroData, sequence_dict: dict, garment_name: str) -> HeteroData:
