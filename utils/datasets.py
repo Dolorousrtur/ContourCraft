@@ -63,7 +63,10 @@ def build_smpl_bygender(smpl_root, model_type='smpl', use_pca=False):
     smpl_model_dict = {}
 
     for gender in ['male', 'female', 'neutral']:
-        smpl_model_dict[gender] = smplx.create(smpl_root, model_type=model_type, gender=gender, use_pca=use_pca)
+        try:
+            smpl_model_dict[gender] = smplx.create(smpl_root, model_type=model_type, gender=gender, use_pca=use_pca)
+        except Exception as e:
+            print(f'WARNING: {gender} model not found in {smpl_root}.')
     
     return smpl_model_dict
 
