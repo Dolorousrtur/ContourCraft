@@ -21,7 +21,6 @@ conda activate ccraft
 ```bash
 pip install pyg-library torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" # Takes a while to build wheel
-pip install loguru huepy wandb
 ```
 
 #### Step 3: Install CCCollision
