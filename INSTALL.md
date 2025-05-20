@@ -11,15 +11,17 @@ We provide three options for the environment installation. They all should lead 
 #### Step 1: Install the environment from `ccraft.yaml`
 
 ```bash
+git clone git@github.com:Dolorousrtur/ContourCraft.git
+cd ContourCraft
 conda env create -f  ccraft.yml
 conda activate ccraft
 ```
 
 #### Step 2: install additional libraries with pip:
 ```bash
-pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+pip install pyg-library torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" # Takes a while to build wheel
-pip install loguru
+pip install loguru huepy wandb
 ```
 
 #### Step 3: Install CCCollision
@@ -40,6 +42,8 @@ pip install .
 
 #### Step 1: Install the environment from `spec-file.txt`
 ```bash
+git clone git@github.com:Dolorousrtur/ContourCraft.git
+cd ContourCraft
 conda create --name ccraft --file spec-file.txt
 conda activate ccraft
 ```
@@ -47,7 +51,7 @@ conda activate ccraft
 #### Step 2: install additional libraries with pip:
 ```bash
 pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" # Takes a while to build wheel
-pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+pip install pyg_library torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 pip install torch-geometric==2.4.0
 pip install warp-lang
 pip install smplx aitviewer chumpy scikit-image scipy trimesh loguru
@@ -70,6 +74,8 @@ pip install .
 #### Step 1: Create an environment and install libraries with pip and conda
 
 ```bash
+git clone git@github.com:Dolorousrtur/ContourCraft.git
+cd ContourCraft
 conda create -n ccraft python=3.10
 conda activate ccraft
 conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia -y
@@ -84,7 +90,7 @@ conda install pandas pillow scikit-learn tqdm yaml -y
 conda install -c iopath iopath -y
 
 pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"
-pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+pip install pyg_library torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 pip install torch-geometric==2.4.0
 pip install warp-lang
 

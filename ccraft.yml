@@ -514,3 +514,6 @@ dependencies:
       - usd-core==24.11
       - warp-lang==1.5.1
       - websockets==14.1
+      - wandb==0.19.11
+      - loguru==0.7.3
+      - huepy==1.2.1
