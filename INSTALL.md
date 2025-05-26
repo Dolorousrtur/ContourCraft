@@ -115,16 +115,7 @@ pip install .
 ## Download data
 
 ### ContourCraft data
-Download the auxiliary data for ContourCraft using this [link](https://drive.google.com/file/d/1NfxAeaC2va8TWMjiO_gbAcVPnZ8BYFPD/view?usp=sharing).
-Unpack it anywhere you want and set the `DEFAULTS.data_root` variable in `defaults.py` to the path of the unpacked folder:
-```python
-DEFAULTS['data_root'] = '/path/to/ccraft_data'
-```
-
-Also, set the `DEFAULTS.project_dir` variable to the path you cloned this repository to:
-```python
-DEFAULTS['project_dir'] = '/path/to/this/repository'
-```
+Download the auxiliary data for ContourCraft using this [link](https://drive.google.com/file/d/1NfxAeaC2va8TWMjiO_gbAcVPnZ8BYFPD/view?usp=sharing) and unpack it anywhere you want.
 
 
 ### SMPL(-X) models
@@ -157,6 +148,29 @@ DEFAULTS.data_root
         |-- fromanypose  // example data to run simulation over a mesh sequence (used in the Inference_from_mesh_sequence.ipynb) 
         |-- unpose // example data for unposing germents (used in GarmentImport.ipynb)
 ```
+
+### AMASS CMU dataset
+We train and evaluate ContourCraft using pose sequences from tha CMU split of the AMASS dataset. You can download both SMPL and SMPL-X versions of this dataset using [this link](https://amass.is.tue.mpg.de/). On this website go to the `Downloads` tab and find the row for the CMU split. You can download both SMPL and SMPL-X versions using the corresponding buttons.
+* For SMPL, download gendered SMPL+H sequences (`SMPL+H G`)
+* For SMPL-X use gendered SMPL-X sequences (`SMPL-X G`)
+
+## Set up global variables for the repo
+To finish your installation, set the global variables in `utils/defaults.py` to the data directories you have just created.
+
+These variables include
+* path to the repository:
+```python
+DEFAULTS['project_dir'] = '/path/to/this/repository'
+```
+* path to the data folder you have downloaded (`ccraft_data`):
+```python
+DEFAULTS['data_root'] = '/path/to/ccraft_data'
+```
+* and path to the smpl version of the AMASS CMU dataset (used only for training):
+```python
+DEFAULTS['CMU_root'] = '/path/to/AMASS/smpl/CMU'
+```
+
 ## Troubleshooting
 
 ### Installing pytorch3d
