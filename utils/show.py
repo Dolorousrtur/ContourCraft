@@ -1,9 +1,11 @@
 import os
 import sys
 from pathlib import Path
-from utils.defaults import DEFAULTS
 
-sys.path.append(DEFAULTS.project_dir)
+sys.path.insert(0, str(Path(__file__).parents[1]))
+print(sys.path[-1])
+
+
 from dataclasses import dataclass
 
 import numpy as np
