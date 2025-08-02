@@ -53,15 +53,25 @@ class WandbWriter(Writer):
             name = mcfg.config
             name += f"-{0}"
 
-        wandb.init(name=name, project=project, entity="agrigorev", dir=DEFAULTS.experiment_root, config=flat_config)
+        
+        try:
+            wandb.init(name=name, project=project, entity="agrigorev", dir=DEFAULTS.experiment_root, config=flat_config)
+            self.initialized = True
 
-        mcfg.run_dir = os.path.dirname(wandb.run.dir)
+            mcfg.run_dir = os.path.dirname(wandb.run.dir)
 
-        if mcfg.step_start is not None:
-            wandb.log({}, step=mcfg.step_start)
+            if mcfg.step_start is not None:
+                wandb.log({}, step=mcfg.step_start)
+        except Exception as e:
+            print(f"WARNING: Wandb initialization failed: {e}")
+            self.initialized = False
 
     def write_dict(self, dict_to_write: Dict[str, float], step=None):
 
         # for k, v in dict_to_write.items():
         #     dict_to_write[k] = 0.
+
+        if not self.initialized:
+            print("WARNING: Wandb writer is not initialized, skipping logging")
+            return
         wandb.log(dict_to_write, step=step)
