@@ -729,6 +729,7 @@ def run_epoch(runner: Runner, aux_modules: dict, dataloaders_dict: dict,
     dataloader_long = dataloaders_dict['long']
 
     n_steps = compute_epoch_size(dataloader_short, dataloader_long, cfg, global_step)
+    n_steps = min(n_steps, cfg.experiment.max_iter)
 
     prbar = tqdm(range(n_steps), desc=cfg.config)
 
